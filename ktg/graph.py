@@ -123,13 +123,13 @@ class KnowledgeTransferGraph:
         labels = []
         for node in self.nodes:
             node.model.train()
-            with torch.cuda.amp.autocast():
+            with torch.amp.autocast('cuda'):
                 y = node.model(image)
             outputs.append(y)
             labels.append(label)
 
         for model_id, node in enumerate(self.nodes):
-            with torch.cuda.amp.autocast():
+            with torch.amp.autocast('cuda'):
                 loss = node.total_loss(model_id, outputs, labels, epoch)
                 if loss != 0:
                     node.scaler.scale(loss).backward()
@@ -148,7 +148,7 @@ class KnowledgeTransferGraph:
         labels = []
         for node in self.nodes:
             node.model.eval()
-            with torch.cuda.amp.autocast():
+            with torch.amp.autocast('cuda'):
                 with torch.no_grad():
                     y = node.model(image)
             outputs.append(y)
