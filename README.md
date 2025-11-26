@@ -21,7 +21,7 @@ cd KnowledgeTransferGraph
 ```
 2. Install the package:
 ```bash
-pip install .
+uv sync
 ```
 
 ## Acknowledgements
