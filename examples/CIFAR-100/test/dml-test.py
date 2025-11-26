@@ -10,11 +10,12 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from ktg import KnowledgeTransferGraph, Node, build_edges
-from ktg.gates import ThroughGate
 from ktg.dataset.cifar_datasets.cifar100 import get_datasets
+from ktg.gates import ThroughGate
 from ktg.losses import KLDivLoss
 from ktg.models import cifar_models
-from ktg.utils import AverageMeter, WorkerInitializer, load_checkpoint, set_seed
+from ktg.utils import (AverageMeter, WorkerInitializer, load_checkpoint,
+                       set_seed)
 
 
 def infer_model_names(
@@ -172,7 +173,7 @@ def main():
         node = Node(
             model=model,
             writer=writer,
-            scaler=torch.amp.GradScaler('cuda'),
+            scaler=torch.amp.GradScaler("cuda"),
             save_dir=save_dir,
             optimizer=optimizer,
             scheduler=scheduler,

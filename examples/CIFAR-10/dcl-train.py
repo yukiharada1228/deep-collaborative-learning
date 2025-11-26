@@ -9,11 +9,12 @@ from optuna.storages import JournalFileStorage, JournalStorage
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from ktg import KnowledgeTransferGraph, Node, gates, build_edges
+from ktg import KnowledgeTransferGraph, Node, build_edges, gates
 from ktg.dataset.cifar_datasets.cifar10 import get_datasets
 from ktg.losses import KLDivLoss
 from ktg.models import cifar_models
-from ktg.utils import AverageMeter, WorkerInitializer, load_checkpoint, set_seed
+from ktg.utils import (AverageMeter, WorkerInitializer, load_checkpoint,
+                       set_seed)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--seed", default=42)
@@ -128,7 +129,7 @@ def objective(trial):
         node = Node(
             model=model,
             writer=writer,
-            scaler=torch.amp.GradScaler('cuda'),
+            scaler=torch.amp.GradScaler("cuda"),
             optimizer=optimizer,
             scheduler=scheduler,
             edges=edges,
