@@ -100,15 +100,15 @@ This directory contains the complete set of experiments for KTG (Knowledge Trans
 1) Pre-train (optional)
 ```bash
 cd examples/CIFAR-100
-python pre_train.py --model resnet32
-python pre_train.py --model resnet110
-python pre_train.py --model wideresnet28_2
+uv run pre_train.py --model resnet32
+uv run pre_train.py --model resnet110
+uv run pre_train.py --model wideresnet28_2
 ```
 
 2) Search with Optuna (DCL)
 ```bash
 cd examples/CIFAR-100
-python dcl_train.py --num-nodes 3 --n_trials 100 \
+uv run dcl_train.py --num-nodes 3 --n_trials 100 \
   --models resnet32 resnet110 wideresnet28_2 \
   --gates ThroughGate CutoffGate PositiveLinearGate NegativeLinearGate
 ```
@@ -116,7 +116,7 @@ python dcl_train.py --num-nodes 3 --n_trials 100 \
 3) Retraining + evaluation with the best trial (test-operation mode)
 ```bash
 cd examples/CIFAR-100/evaluation
-python dcl_test.py --num-nodes 3 --trial 1
+uv run dcl_test.py --num-nodes 3 --trial 1
 # If omitted, the study's best_trial is used by default
 ```
 
