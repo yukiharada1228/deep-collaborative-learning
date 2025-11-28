@@ -29,6 +29,8 @@ class PositiveLinearGate(nn.Module):
             loss_weight = float(epoch > 0)
         else:
             loss_weight = epoch / (self.max_epoch - 1)
+        # 数値誤差を考慮してクリップ
+        loss_weight = max(0.0, min(1.0, loss_weight))
         return loss * loss_weight
 
 
