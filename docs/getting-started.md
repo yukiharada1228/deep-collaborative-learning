@@ -1,0 +1,171 @@
+# Getting Started
+
+This guide will help you get started with Knowledge Transfer Graph (KTG).
+
+## Installation
+
+### Prerequisites
+
+- Python >= 3.8
+- PyTorch >= 2.5.1
+- CUDA-capable GPU (recommended)
+
+### Install from Source
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yukiharada1228/KnowledgeTransferGraph.git
+cd KnowledgeTransferGraph
+```
+
+2. Install the package using `uv`:
+```bash
+uv sync
+```
+
+Or using `pip`:
+```bash
+pip install -e .
+```
+
+## Basic Usage
+
+### Step 1: Prepare Your Data
+
+First, prepare your training and validation data loaders:
+
+```python
+from torch.utils.data import DataLoader
+
+train_dataloader = DataLoader(
+    train_dataset,
+    batch_size=64,
+    shuffle=True,
+    num_workers=4,
+    pin_memory=True,
+)
+
+test_dataloader = DataLoader(
+    test_dataset,
+    batch_size=64,
+    shuffle=False,
+    num_workers=4,
+    pin_memory=True,
+)
+```
+
+### Step 2: Define Your Models
+
+Create the models you want to train collaboratively:
+
+```python
+import torch.nn as nn
+from ktg.models import cifar_models  # or your own models
+
+num_classes = 10
+model1 = cifar_models.resnet32(num_classes).cuda()
+model2 = cifar_models.resnet110(num_classes).cuda()
+model3 = cifar_models.wideresnet28_2(num_classes).cuda()
+```
+
+### Step 3: Create Nodes
+
+Each model becomes a node in the graph. Define the loss functions and gates for knowledge transfer:
+
+```python
+from ktg import Node, build_edges, gates
+from ktg.losses import KLDivLoss
+from ktg.utils import AverageMeter
+from torch.utils.tensorboard import SummaryWriter
+import torch
+
+max_epoch = 200
+num_nodes = 3
+
+nodes = []
+for i in range(num_nodes):
+    # Select model
+    if i == 0:
+        model = cifar_models.resnet32(num_classes).cuda()
+    elif i == 1:
+        model = cifar_models.resnet110(num_classes).cuda()
+    else:
+        model = cifar_models.wideresnet28_2(num_classes).cuda()
+    
+    # Define criterions: CrossEntropyLoss for self, KLDivLoss for others
+    criterions = []
+    for j in range(num_nodes):
+        if i == j:
+            criterions.append(nn.CrossEntropyLoss())
+        else:
+            criterions.append(KLDivLoss())
+    
+    # Define gates for knowledge transfer
+    gates_list = [
+        gates.ThroughGate(max_epoch),      # Always transfer
+        gates.CutoffGate(max_epoch),       # Never transfer
+        gates.PositiveLinearGate(max_epoch) # Gradually increase transfer
+    ]
+    
+    # Build edges
+    edges = build_edges(criterions, gates_list)
+    
+    # Create optimizer and scheduler
+    optimizer = torch.optim.SGD(
+        model.parameters(),
+        lr=0.1,
+        momentum=0.9,
+        weight_decay=5e-4,
+        nesterov=True
+    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=max_epoch, eta_min=0.0
+    )
+    
+    # Create node
+    node = Node(
+        model=model,
+        writer=SummaryWriter(f"runs/node_{i}"),
+        scaler=torch.amp.GradScaler("cuda"),
+        optimizer=optimizer,
+        scheduler=scheduler,
+        edges=edges,
+        loss_meter=AverageMeter(),
+        score_meter=AverageMeter(),
+    )
+    nodes.append(node)
+```
+
+### Step 4: Create and Train the Graph
+
+Create the KnowledgeTransferGraph and start training:
+
+```python
+from ktg import KnowledgeTransferGraph
+
+graph = KnowledgeTransferGraph(
+    nodes=nodes,
+    max_epoch=max_epoch,
+    train_dataloader=train_dataloader,
+    test_dataloader=test_dataloader,
+)
+
+best_score = graph.train()
+print(f"Best validation accuracy: {best_score:.2f}%")
+```
+
+## Understanding Gates
+
+Gates control when and how much knowledge is transferred between models:
+
+- **ThroughGate**: Always transfers knowledge (weight = 1.0)
+- **CutoffGate**: Never transfers knowledge (weight = 0.0)
+- **PositiveLinearGate**: Gradually increases transfer from 0 to 1 over epochs
+- **NegativeLinearGate**: Gradually decreases transfer from 1 to 0 over epochs
+
+## Next Steps
+
+- Read the [Architecture](architecture.md) guide to understand the framework in detail
+- Check out the [API Reference](api-reference.md) for complete API documentation
+- See [Examples](examples.md) for more advanced usage patterns
+
