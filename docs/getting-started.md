@@ -60,7 +60,7 @@ Create the models you want to train collaboratively:
 
 ```python
 import torch.nn as nn
-from ktg.models import cifar_models  # or your own models
+from ktg.models import cifar_models
 
 num_classes = 10
 model1 = cifar_models.resnet32(num_classes).cuda()
@@ -73,11 +73,13 @@ model3 = cifar_models.wideresnet28_2(num_classes).cuda()
 Each model becomes a node in the graph. Define the loss functions and gates for knowledge transfer:
 
 ```python
-from ktg import Node, build_edges, gates
+from ktg import KnowledgeTransferGraph, Node, build_edges, gates
 from ktg.losses import KLDivLoss
+from ktg.models import cifar_models
 from ktg.utils import AverageMeter
 from torch.utils.tensorboard import SummaryWriter
 import torch
+import torch.nn as nn
 
 max_epoch = 200
 num_nodes = 3
@@ -141,8 +143,6 @@ for i in range(num_nodes):
 Create the KnowledgeTransferGraph and start training:
 
 ```python
-from ktg import KnowledgeTransferGraph
-
 graph = KnowledgeTransferGraph(
     nodes=nodes,
     max_epoch=max_epoch,

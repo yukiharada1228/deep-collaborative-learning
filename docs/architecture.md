@@ -85,16 +85,20 @@ class Edge(nn.Module):
 
 ### 4. TotalLoss
 
-Each node has a `TotalLoss` module that aggregates losses from all incoming edges:
+Each node has a `TotalLoss` module that aggregates losses from all incoming edges. This is automatically created from the node's edges in `__post_init__`:
 
 ```python
 class TotalLoss(nn.Module):
     def __init__(self, edges: list[Edge]):
+        super(TotalLoss, self).__init__()
         self.incoming_edges = nn.ModuleList(edges)
     
     def forward(self, model_id, outputs, labels, epoch):
-        # Sum losses from all incoming edges
+        if model_id < 0 or model_id >= len(outputs):
+            raise ValueError(f"Invalid model_id: {model_id}")
         losses = []
+        target_output = outputs[model_id]
+        label = labels[model_id]
         for i, edge in enumerate(self.incoming_edges):
             if i == model_id:
                 # Self-edge: use ground truth label
@@ -102,6 +106,7 @@ class TotalLoss(nn.Module):
             else:
                 # Transfer edge: use source model output
                 loss = edge(target_output, None, outputs[i], epoch, False)
+            losses.append(loss)
         return torch.stack(losses).sum()
 ```
 
@@ -109,17 +114,22 @@ class TotalLoss(nn.Module):
 
 ### Forward Pass
 
-1. For each batch, all models process the input in parallel:
+1. For each batch, all models process the input in parallel with mixed precision:
    ```python
    outputs = []
+   labels = []
    for node in self.nodes:
-       y = node.model(image)
+       node.model.train()
+       with torch.amp.autocast("cuda"):
+           y = node.model(image)
        outputs.append(y)
+       labels.append(label)
    ```
 
 2. For each node, compute the total loss:
    ```python
-   loss = node.total_loss(model_id, outputs, labels, epoch)
+   with torch.amp.autocast("cuda"):
+       loss = node.total_loss(model_id, outputs, labels, epoch)
    ```
 
 3. The total loss aggregates:
@@ -128,18 +138,28 @@ class TotalLoss(nn.Module):
 
 ### Backward Pass
 
-1. Scale the loss with gradient scaler (for mixed precision)
-2. Backpropagate through the model
-3. Update optimizer
-4. Update learning rate scheduler
+1. Scale the loss with gradient scaler (for mixed precision):
+   ```python
+   if loss != 0:
+       node.scaler.scale(loss).backward()
+       node.scaler.step(node.optimizer)
+       node.optimizer.zero_grad()
+       node.scaler.update()
+   ```
+
+2. Update learning rate scheduler (after epoch):
+   ```python
+   if node.scheduler is not None:
+       node.scheduler.step()
+   ```
 
 ### Evaluation
 
 After each epoch:
-1. Evaluate all models on validation set
-2. Log metrics to TensorBoard
-3. Save best checkpoints
-4. Report to Optuna trial (if applicable)
+1. Evaluate all models on validation set (with `model.eval()` and `torch.no_grad()`)
+2. Log metrics to TensorBoard (train_loss, train_score, test_score, train_lr)
+3. Save best checkpoints (if `save_dir` is specified)
+4. Report to Optuna trial (if applicable, using node 0's score)
 
 ## Gates
 
@@ -192,12 +212,19 @@ Knowledge distillation loss for transfer edges. Uses temperature scaling:
 ```python
 class KLDivLoss(nn.Module):
     def __init__(self, T=1):
+        super(KLDivLoss, self).__init__()
         self.T = T  # Temperature parameter
+        self.softmax = nn.Softmax(dim=-1)
     
     def forward(self, y_pred, y_gt):
-        y_pred_soft = softmax(y_pred / T)
-        y_gt_soft = softmax(y_gt.detach() / T)
-        return (T**2) * KL_divergence(y_pred_soft, y_gt_soft)
+        y_pred_soft = self.softmax(y_pred / self.T)
+        y_gt_soft = self.softmax(y_gt.detach() / self.T)
+        return (self.T**2) * self.kl_divergence(y_pred_soft, y_gt_soft)
+    
+    def kl_divergence(self, student, teacher):
+        kl = teacher * torch.log((teacher / (student + 1e-10)) + 1e-10)
+        kl = kl.sum(dim=1)
+        return kl.mean()
 ```
 
 The `T^2` factor compensates for the gradient scaling introduced by temperature scaling.

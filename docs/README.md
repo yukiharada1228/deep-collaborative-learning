@@ -26,23 +26,60 @@ Knowledge Transfer Graph is a framework for training multiple neural networks co
 ```python
 from ktg import KnowledgeTransferGraph, Node, build_edges, gates
 from ktg.losses import KLDivLoss
+from ktg.models import cifar_models
+from ktg.utils import AverageMeter
+from torch.utils.tensorboard import SummaryWriter
+import torch
 import torch.nn as nn
 
 # Create nodes (models)
+max_epoch = 200
+num_nodes = 3
+num_classes = 10
+
 nodes = []
-for i in range(3):
-    model = YourModel().cuda()
-    edges = build_edges(
-        criterions=[nn.CrossEntropyLoss() if i == j else KLDivLoss() 
-                   for j in range(3)],
-        gates=[gates.ThroughGate(max_epoch=200) for _ in range(3)]
+for i in range(num_nodes):
+    # Select model
+    if i == 0:
+        model = cifar_models.resnet32(num_classes).cuda()
+    elif i == 1:
+        model = cifar_models.resnet110(num_classes).cuda()
+    else:
+        model = cifar_models.wideresnet28_2(num_classes).cuda()
+    
+    # Define criterions
+    criterions = []
+    for j in range(num_nodes):
+        if i == j:
+            criterions.append(nn.CrossEntropyLoss())
+        else:
+            criterions.append(KLDivLoss())
+    
+    # Define gates
+    gates_list = [gates.ThroughGate(max_epoch) for _ in range(num_nodes)]
+    
+    # Build edges
+    edges = build_edges(criterions, gates_list)
+    
+    # Create optimizer and scheduler
+    optimizer = torch.optim.SGD(
+        model.parameters(),
+        lr=0.1,
+        momentum=0.9,
+        weight_decay=5e-4,
+        nesterov=True
     )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=max_epoch, eta_min=0.0
+    )
+    
+    # Create node
     node = Node(
         model=model,
         writer=SummaryWriter(f"runs/node_{i}"),
         scaler=torch.amp.GradScaler("cuda"),
-        optimizer=torch.optim.SGD(model.parameters(), lr=0.1),
-        scheduler=torch.optim.lr_scheduler.CosineAnnealingLR(...),
+        optimizer=optimizer,
+        scheduler=scheduler,
         edges=edges,
         loss_meter=AverageMeter(),
         score_meter=AverageMeter(),
@@ -52,7 +89,7 @@ for i in range(3):
 # Create and train the graph
 graph = KnowledgeTransferGraph(
     nodes=nodes,
-    max_epoch=200,
+    max_epoch=max_epoch,
     train_dataloader=train_loader,
     test_dataloader=test_loader,
 )

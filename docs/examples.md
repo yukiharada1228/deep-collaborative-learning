@@ -22,7 +22,7 @@ from ktg.utils import AverageMeter, WorkerInitializer, set_seed
 set_seed(42)
 
 # Prepare data
-train_dataset, val_dataset = get_datasets()
+train_dataset, val_dataset = get_datasets(use_test_mode=False)
 train_loader = DataLoader(
     train_dataset,
     batch_size=64,
@@ -140,10 +140,24 @@ from optuna.study import MaxTrialsCallback
 def objective(trial):
     set_seed(42)
     
-    # Prepare data (same as Example 1)
-    train_dataset, val_dataset = get_datasets()
-    train_loader = DataLoader(...)
-    val_loader = DataLoader(...)
+    # Prepare data
+    train_dataset, val_dataset = get_datasets(use_test_mode=False)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=64,
+        shuffle=True,
+        num_workers=4,
+        pin_memory=True,
+        worker_init_fn=WorkerInitializer(42).worker_init_fn,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=64,
+        shuffle=False,
+        num_workers=4,
+        pin_memory=True,
+        worker_init_fn=WorkerInitializer(42).worker_init_fn,
+    )
     
     max_epoch = 200
     num_nodes = 3
@@ -270,7 +284,7 @@ model2 = MyCustomModel(num_classes=10).cuda()
 
 ## Example 5: Pre-trained Model Initialization
 
-Initialize some models with pre-trained weights.
+Initialize some models with pre-trained weights. This is useful when you want to start training from a checkpoint:
 
 ```python
 from ktg.utils import load_checkpoint
@@ -279,13 +293,16 @@ from ktg.utils import load_checkpoint
 
 for i, node in enumerate(nodes):
     if i > 0:  # Initialize non-primary nodes with pre-trained weights
-        model_name = node.model.__class__.__name__.lower()
+        # Get model name (e.g., "ResNet32", "ResNet110")
+        model_name = node.model.__class__.__name__
         load_checkpoint(
             model=node.model,
             save_dir=f"checkpoint/pre-train/{model_name}",
             is_best=True,
         )
 ```
+
+**Note:** The checkpoint file should be saved as `best_checkpoint.pkl` in the specified directory when using `is_best=True`.
 
 ## Example 6: Custom Loss Function
 
@@ -322,39 +339,36 @@ for j in range(num_nodes):
 
 ## Example 7: Asymmetric Graph
 
-Create an asymmetric graph where not all models transfer to each other.
+Create an asymmetric graph where not all models transfer to each other. Note that in the current implementation, all nodes must have the same number of edges (one for each node including itself). To create asymmetric transfer, use `CutoffGate` to disable specific transfers:
 
 ```python
 # Model 0 receives from all models
-# Model 1 only receives from model 0
-# Model 2 receives from models 0 and 1
+# Model 1 receives from all models (but can use CutoffGate to disable specific transfers)
+# Model 2 receives from models 0 and 1 (uses CutoffGate for self-to-self transfer)
 
 nodes = []
 for i in range(3):
     criterions = []
     gates_list = []
     
-    if i == 0:
-        # Model 0: receives from all
-        for j in range(3):
-            if j == 0:
-                criterions.append(nn.CrossEntropyLoss())
-            else:
-                criterions.append(KLDivLoss())
+    for j in range(3):
+        if i == j:
+            criterions.append(nn.CrossEntropyLoss())
+        else:
+            criterions.append(KLDivLoss())
+        
+        if i == 0:
+            # Model 0: receives from all
             gates_list.append(gates.ThroughGate(max_epoch))
-    
-    elif i == 1:
-        # Model 1: only receives from model 0
-        criterions = [nn.CrossEntropyLoss(), KLDivLoss(), None]
-        gates_list = [gates.ThroughGate(max_epoch), gates.ThroughGate(max_epoch), None]
-        # Filter out None values
-        criterions = [c for c in criterions if c is not None]
-        gates_list = [g for g in gates_list if g is not None]
-    
-    else:  # i == 2
-        # Model 2: receives from models 0 and 1
-        criterions = [nn.CrossEntropyLoss(), KLDivLoss(), KLDivLoss()]
-        gates_list = [gates.ThroughGate(max_epoch), gates.ThroughGate(max_epoch), gates.CutoffGate(max_epoch)]
+        elif i == 1:
+            # Model 1: receives from all
+            gates_list.append(gates.ThroughGate(max_epoch))
+        else:  # i == 2
+            # Model 2: receives from models 0 and 1, but not from itself (use CutoffGate)
+            if j == 2:
+                gates_list.append(gates.CutoffGate(max_epoch))
+            else:
+                gates_list.append(gates.ThroughGate(max_epoch))
     
     edges = build_edges(criterions, gates_list)
     # ... create node ...

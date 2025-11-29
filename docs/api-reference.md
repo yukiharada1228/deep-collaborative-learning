@@ -92,7 +92,7 @@ class Node:
 - `eval` (nn.Module): Evaluation function (default: accuracy)
 - `save_dir` (Optional[str]): Directory to save checkpoints
 
-**Note:** The `total_loss` field is automatically created from `edges` in `__post_init__`.
+**Note:** The `total_loss` field is automatically created from `edges` in `__post_init__` as a `TotalLoss` instance.
 
 ---
 
@@ -225,10 +225,16 @@ class KLDivLoss(nn.Module):
 
 **Formula:**
 ```
-loss = T^2 * KL(softmax(y_gt/T), softmax(y_pred/T))
+y_pred_soft = softmax(y_pred / T)
+y_gt_soft = softmax(y_gt.detach() / T)
+loss = T^2 * KL(y_gt_soft, y_pred_soft)
 ```
 
-The `T^2` factor compensates for gradient scaling from temperature.
+The `T^2` factor compensates for gradient scaling from temperature scaling. The KL divergence is computed as:
+```
+kl = teacher * log(teacher / (student + 1e-10) + 1e-10)
+loss = T^2 * mean(sum(kl, dim=1))
+```
 
 **Example:**
 ```python
@@ -392,22 +398,32 @@ model = cifar_models.wideresnet28_2(num_classes=10)
 ```python
 from ktg.dataset.cifar_datasets.cifar10 import get_datasets
 
-train_dataset, val_dataset = get_datasets()
+train_dataset, val_dataset = get_datasets(use_test_mode=False)
 ```
 
+**Parameters:**
+- `use_test_mode` (bool): If `True`, returns (train+val, test) datasets. If `False`, returns (train, val) datasets (default: `False`)
+
 **Returns:**
-- `train_dataset`: Training dataset
-- `val_dataset`: Validation dataset
+- `train_dataset`: Training dataset (or train+val if `use_test_mode=True`)
+- `val_dataset`: Validation dataset (or test dataset if `use_test_mode=True`)
+
+**Note:** The datasets automatically download CIFAR-10 data to `data/` directory and apply appropriate transforms (normalization, augmentation).
 
 ### CIFAR-100 Dataset
 
 ```python
 from ktg.dataset.cifar_datasets.cifar100 import get_datasets
 
-train_dataset, val_dataset = get_datasets()
+train_dataset, val_dataset = get_datasets(use_test_mode=False)
 ```
 
+**Parameters:**
+- `use_test_mode` (bool): If `True`, returns (train+val, test) datasets. If `False`, returns (train, val) datasets (default: `False`)
+
 **Returns:**
-- `train_dataset`: Training dataset
-- `val_dataset`: Validation dataset
+- `train_dataset`: Training dataset (or train+val if `use_test_mode=True`)
+- `val_dataset`: Validation dataset (or test dataset if `use_test_mode=True`)
+
+**Note:** The datasets automatically download CIFAR-100 data to `data/` directory and apply appropriate transforms (normalization, augmentation).
 
