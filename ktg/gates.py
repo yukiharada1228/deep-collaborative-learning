@@ -58,5 +58,6 @@ class CorrectGate(nn.Module):
         # Use only samples where teacher is correct
         mask = 1 * TT + 1 * TF + 0 * FT + 0 * FF
 
-        # Apply mask and return mean
-        return (loss * mask).mean()
+        # Apply mask and compute mean over valid samples only
+        # Add epsilon to avoid division by zero while preserving gradients
+        return (loss * mask).sum() / (mask.sum() + 1e-8)
