@@ -41,9 +41,15 @@ class CorrectGate(nn.Module):
     def __init__(self, max_epoch):
         super(CorrectGate, self).__init__()
 
-    def forward(self, loss, epoch, student_logits, teacher_logits, label, **kwargs):
+    def forward(self, loss, epoch, student_logits=None, teacher_logits=None, label=None, **kwargs):
         # Filter samples based on teacher and student prediction correctness
         # as defined in the paper
+
+        # If required arguments are not provided (e.g., self-edge case),
+        # behave like ThroughGate and return mean of all samples
+        if student_logits is None or teacher_logits is None or label is None:
+            return loss.mean()
+
         # Determine if student and teacher predictions are correct
         true_s = student_logits.argmax(dim=1) == label
         true_t = teacher_logits.argmax(dim=1) == label
