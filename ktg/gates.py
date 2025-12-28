@@ -55,10 +55,10 @@ class CorrectGate(nn.Module):
         true_t = teacher_logits.argmax(dim=1) == label
 
         # Create masks for each case
-        TT = ((true_t == 1) & (true_s == 1)).float()
-        TF = ((true_t == 1) & (true_s == 0)).float()
-        FT = ((true_t == 0) & (true_s == 1)).float()
-        FF = ((true_t == 0) & (true_s == 0)).float()
+        TT = (true_t & true_s).float()
+        TF = (true_t & ~true_s).float()
+        FT = (~true_t & true_s).float()
+        FF = (~true_t & ~true_s).float()
 
         # Paper definition: TT=1, TF=1, FT=0, FF=0
         # Use only samples where teacher is correct
