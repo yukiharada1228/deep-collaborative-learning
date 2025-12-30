@@ -5,9 +5,11 @@
   <!-- <img src="https://img.shields.io/badge/-Docker-eb7739.svg?logo=docker&style=for-the-badge"> -->
 </p>
 
-# KnowledgeTransferGraph
+# Deep Collaborative Learning (DCL)
 
 This repository implements the "Knowledge Transfer Graph for Deep Collaborative Learning" described in the [ACCV 2020 accepted paper](https://openaccess.thecvf.com/content/ACCV2020/html/Minami_Knowledge_Transfer_Graph_for_Deep_Collaborative_Learning_ACCV_2020_paper.html). This implementation faithfully follows the original paper, including all four gate functions proposed in the paper.
+
+The package is named `dcl` (Deep Collaborative Learning) for ease of use in your code.
 
 ## Gate Functions
 The implementation includes the four gate functions as described in the original paper:
@@ -17,11 +19,11 @@ The implementation includes the four gate functions as described in the original
 - **CorrectGate**: Filters samples based on the correctness of teacher and student predictions, using only samples where the teacher made correct predictions
 
 ## Usage
-To use the Knowledge Transfer Graph in your project, follow these steps:
+To use Deep Collaborative Learning in your project, follow these steps:
 1. Clone the repository:
 ```bash
-git clone https://github.com/yukiharada1228/KnowledgeTransferGraph.git
-cd KnowledgeTransferGraph
+git clone https://github.com/yukiharada1228/deep-collaborative-learning.git
+cd deep-collaborative-learning
 ```
 2. Install the package:
 ```bash

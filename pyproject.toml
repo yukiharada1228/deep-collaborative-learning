@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 version = "0.0.1"
-name = "ktg"
-description = "KnowledgeTransferGraph"
+name = "dcl"
+description = "Deep Collaborative Learning"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [
@@ -31,4 +31,4 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["ktg"]
+packages = ["dcl"]

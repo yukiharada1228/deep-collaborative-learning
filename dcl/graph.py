@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from ktg.utils import AverageMeter, accuracy, save_checkpoint
+from dcl.utils import AverageMeter, accuracy, save_checkpoint
 
 
 class Edge(nn.Module):

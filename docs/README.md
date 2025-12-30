@@ -24,9 +24,9 @@ Knowledge Transfer Graph is a framework for training multiple neural networks co
 ## Quick Example
 
 ```python
-from ktg import KnowledgeTransferGraph, Node, build_edges, gates
-from ktg.models import cifar_models
-from ktg.utils import AverageMeter
+from dcl import KnowledgeTransferGraph, Node, build_edges, gates
+from dcl.models import cifar_models
+from dcl.utils import AverageMeter
 from torch.utils.tensorboard import SummaryWriter
 import torch
 import torch.nn as nn

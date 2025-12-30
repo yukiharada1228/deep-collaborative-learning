@@ -301,7 +301,7 @@ class AverageMeter:
 
 **Example:**
 ```python
-from ktg.utils import AverageMeter
+from dcl.utils import AverageMeter
 
 meter = AverageMeter()
 meter.update(0.95, n=100)
@@ -390,7 +390,7 @@ class WorkerInitializer:
 
 **Example:**
 ```python
-from ktg.utils import WorkerInitializer
+from dcl.utils import WorkerInitializer
 
 loader = DataLoader(
     dataset,
@@ -407,7 +407,7 @@ loader = DataLoader(
 Pre-defined models for CIFAR-10/100 datasets.
 
 ```python
-from ktg.models import cifar_models
+from dcl.models import cifar_models
 
 # ResNet variants
 model = cifar_models.resnet18(num_classes=10)
@@ -434,7 +434,7 @@ model = cifar_models.wideresnet28_2(num_classes=10)
 ### CIFAR-10 Dataset
 
 ```python
-from ktg.dataset.cifar_datasets.cifar10 import get_datasets
+from dcl.dataset.cifar_datasets.cifar10 import get_datasets
 
 train_dataset, val_dataset = get_datasets(use_test_mode=False)
 ```
@@ -451,7 +451,7 @@ train_dataset, val_dataset = get_datasets(use_test_mode=False)
 ### CIFAR-100 Dataset
 
 ```python
-from ktg.dataset.cifar_datasets.cifar100 import get_datasets
+from dcl.dataset.cifar_datasets.cifar100 import get_datasets
 
 train_dataset, val_dataset = get_datasets(use_test_mode=False)
 ```

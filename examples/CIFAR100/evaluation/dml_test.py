@@ -9,11 +9,11 @@ from optuna.storages import JournalFileStorage, JournalStorage
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from ktg import KnowledgeTransferGraph, Node, build_edges
-from ktg.dataset.cifar_datasets.cifar100 import get_datasets
-from ktg.gates import ThroughGate
-from ktg.models import cifar_models
-from ktg.utils import AverageMeter, WorkerInitializer, load_checkpoint, set_seed
+from dcl import KnowledgeTransferGraph, Node, build_edges
+from dcl.dataset.cifar_datasets.cifar100 import get_datasets
+from dcl.gates import ThroughGate
+from dcl.models import cifar_models
+from dcl.utils import AverageMeter, WorkerInitializer, load_checkpoint, set_seed
 
 
 def infer_model_names(

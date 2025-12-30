@@ -10,10 +10,10 @@ from optuna.study import MaxTrialsCallback
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from ktg import KnowledgeTransferGraph, Node, build_edges, gates
-from ktg.dataset.cifar_datasets.cifar100 import get_datasets
-from ktg.models import cifar_models
-from ktg.utils import AverageMeter, WorkerInitializer, load_checkpoint, set_seed
+from dcl import KnowledgeTransferGraph, Node, build_edges, gates
+from dcl.dataset.cifar_datasets.cifar100 import get_datasets
+from dcl.models import cifar_models
+from dcl.utils import AverageMeter, WorkerInitializer, load_checkpoint, set_seed
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--seed", default=42)

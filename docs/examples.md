@@ -12,10 +12,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from ktg import KnowledgeTransferGraph, Node, build_edges, gates
-from ktg.models import cifar_models
-from ktg.dataset.cifar_datasets.cifar10 import get_datasets
-from ktg.utils import AverageMeter, WorkerInitializer, set_seed
+from dcl import KnowledgeTransferGraph, Node, build_edges, gates
+from dcl.models import cifar_models
+from dcl.dataset.cifar_datasets.cifar10 import get_datasets
+from dcl.utils import AverageMeter, WorkerInitializer, set_seed
 
 # Set seed for reproducibility
 set_seed(42)
@@ -286,7 +286,7 @@ model2 = MyCustomModel(num_classes=10).cuda()
 Initialize some models with pre-trained weights. This is useful when you want to start training from a checkpoint:
 
 ```python
-from ktg.utils import load_checkpoint
+from dcl.utils import load_checkpoint
 
 # ... create nodes ...
 
