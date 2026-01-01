@@ -152,7 +152,6 @@ class DistillationTrainer:
         test_dataloader: DataLoader,
         trial=None,
     ):
-        print("Welcome to DCL!!!")
         self.learners = learners
         for learner in learners:
             if learner.save_dir:

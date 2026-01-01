@@ -1,6 +1,6 @@
 __version__ = "0.0.0"
 
-from .graph import DistillationLink, DistillationTrainer, Learner, build_links
+from .trainer import DistillationLink, DistillationTrainer, Learner, build_links
  
 __all__ = (
     "__version__",
