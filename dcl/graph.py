@@ -12,6 +12,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+from dcl.gates import CutoffGate
 from dcl.utils import AverageMeter, accuracy, save_checkpoint
 
 
@@ -87,16 +88,40 @@ class TotalLoss(nn.Module):
     def forward(self, model_id, outputs, labels, epoch):
         if model_id < 0 or model_id >= len(outputs):
             raise ValueError(f"Invalid model_id: {model_id}")
-        losses = []
+
+        supervised_loss = 0.0
+        distillation_losses = []
+        valid_teacher_count = 0
+
         target_output = outputs[model_id]
         label = labels[model_id]
+
         for i, edge in enumerate(self.incoming_edges):
             if i == model_id:
-                losses.append(edge(target_output, label, None, epoch, True))
+                # Self-edge (supervised loss)
+                supervised_loss = edge(target_output, label, None, epoch, True)
             else:
-                losses.append(edge(target_output, None, outputs[i], epoch, False))
-        loss = torch.stack(losses).sum()
-        return loss
+                # Distillation edge
+                # Check if the gate is CutoffGate
+                if not isinstance(edge.gate, CutoffGate):
+                    valid_teacher_count += 1
+
+                dist_loss = edge(target_output, None, outputs[i], epoch, False)
+                distillation_losses.append(dist_loss)
+
+        # Sum of distillation losses
+        distillation_loss_sum = (
+            torch.stack(distillation_losses).sum() if distillation_losses else 0.0
+        )
+
+        # Apply averaging if there are valid teachers
+        if valid_teacher_count > 0:
+            distillation_loss_mean = distillation_loss_sum / valid_teacher_count
+        else:
+            distillation_loss_mean = 0.0
+
+        total_loss = supervised_loss + distillation_loss_mean
+        return total_loss
 
 
 @dataclass
@@ -145,16 +170,24 @@ class KnowledgeTransferGraph:
         outputs = []
         labels = []
         for node in self.nodes:
-            node.model.train()
-            with torch.amp.autocast("cuda"):
-                y = node.model(image)
+            # Check if all edges have CutoffGate
+            # If so, use eval mode (for pre-trained teacher models)
+            all_cutoff = all(isinstance(edge.gate, CutoffGate) for edge in node.edges)
+            if all_cutoff:
+                node.model.eval()
+                with torch.no_grad(), torch.amp.autocast("cuda"):
+                    y = node.model(image)
+            else:
+                node.model.train()
+                with torch.amp.autocast("cuda"):
+                    y = node.model(image)
             outputs.append(y)
             labels.append(label)
 
         for model_id, node in enumerate(self.nodes):
             with torch.amp.autocast("cuda"):
                 loss = node.total_loss(model_id, outputs, labels, epoch)
-                if loss != 0:
+                if node.model.training:
                     node.scaler.scale(loss).backward()
                     node.scaler.step(node.optimizer)
                     node.optimizer.zero_grad()

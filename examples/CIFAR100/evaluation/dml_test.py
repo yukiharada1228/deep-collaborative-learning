@@ -13,7 +13,8 @@ from dcl import KnowledgeTransferGraph, Node, build_edges
 from dcl.dataset.cifar_datasets.cifar100 import get_datasets
 from dcl.gates import ThroughGate
 from dcl.models import cifar_models
-from dcl.utils import AverageMeter, WorkerInitializer, load_checkpoint, set_seed
+from dcl.utils import (AverageMeter, WorkerInitializer, load_checkpoint,
+                       set_seed)
 
 
 def infer_model_names(
@@ -82,9 +83,7 @@ def main():
     else:
         # Use best trial
         if study.best_trial is None:
-            raise RuntimeError(
-                "best_trial not found. Training may be incomplete."
-            )
+            raise RuntimeError("best_trial not found. Training may be incomplete.")
         best_trial = study.best_trial
 
     model_names = infer_model_names(best_trial, args.num_nodes)

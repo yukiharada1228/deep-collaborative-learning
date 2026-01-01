@@ -13,7 +13,8 @@ from torch.utils.tensorboard import SummaryWriter
 from dcl import KnowledgeTransferGraph, Node, build_edges, gates
 from dcl.dataset.cifar_datasets.cifar100 import get_datasets
 from dcl.models import cifar_models
-from dcl.utils import AverageMeter, WorkerInitializer, load_checkpoint, set_seed
+from dcl.utils import (AverageMeter, WorkerInitializer, load_checkpoint,
+                       set_seed)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--seed", default=42)
@@ -27,7 +28,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--gates",
-    default=["ThroughGate", "CutoffGate", "LinearGate", "CorrectGate"],
+    default=["ThroughGate", "CutoffGate"],
     nargs="*",
     type=str,
 )
