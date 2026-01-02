@@ -81,25 +81,49 @@ def build_links(
     return [DistillationLink(c, g) for c, g in zip(criterions, gates)]
 
 
-class TotalLoss(nn.Module):
+class CompositeLoss(nn.Module):
     def __init__(self, links: list[DistillationLink]):
-        super(TotalLoss, self).__init__()
+        super(CompositeLoss, self).__init__()
         # Store all incoming links
         self.incoming_links = nn.ModuleList(links)
 
     def forward(self, model_id, outputs, labels, epoch):
         if model_id < 0 or model_id >= len(outputs):
             raise ValueError(f"Invalid model_id: {model_id}")
-        losses = []
+
+        supervised_loss = 0.0
+        distillation_losses = []
+        valid_teacher_count = 0
+
         target_output = outputs[model_id]
         label = labels[model_id]
+
         for i, link in enumerate(self.incoming_links):
             if i == model_id:
-                losses.append(link(target_output, label, None, epoch, True))
+                # Self-link (supervised loss)
+                supervised_loss = link(target_output, label, None, epoch, True)
             else:
-                losses.append(link(target_output, None, outputs[i], epoch, False))
-        loss = torch.stack(losses).sum()
-        return loss
+                # Distillation link
+                # Check if the gate is CutoffGate
+                if not isinstance(link.gate, CutoffGate):
+                    valid_teacher_count += 1
+
+                dist_loss = link(target_output, None, outputs[i], epoch, False)
+                distillation_losses.append(dist_loss)
+
+        # Sum of distillation losses
+        distillation_loss_sum = (
+            torch.stack(distillation_losses).sum() if distillation_losses else 0.0
+        )
+
+        # Apply averaging if there are valid teachers
+        if valid_teacher_count > 0:
+            distillation_loss_mean = distillation_loss_sum / valid_teacher_count
+        else:
+            distillation_loss_mean = 0.0
+
+        total_loss = supervised_loss + distillation_loss_mean
+        return total_loss
 
 
 @dataclass
@@ -109,7 +133,7 @@ class Learner:
     scaler: torch.amp.GradScaler
     optimizer: Optimizer
     links: list[DistillationLink]
-    composite_loss: TotalLoss = field(init=False)
+    composite_loss: CompositeLoss = field(init=False)
     loss_meter: AverageMeter
     score_meter: AverageMeter
     scheduler: LRScheduler = None
@@ -118,7 +142,7 @@ class Learner:
     save_dir: Optional[str] = None
 
     def __post_init__(self):
-        self.composite_loss = TotalLoss(links=self.links)
+        self.composite_loss = CompositeLoss(links=self.links)
 
 
 class DistillationTrainer:
