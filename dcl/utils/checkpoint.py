@@ -17,5 +17,5 @@ def save_checkpoint(model, save_dir, epoch, is_best=False):
 
 
 def load_checkpoint(model, checkpoint_path):
-    state = torch.load(checkpoint_path, map_location="cpu")
+    state = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     model.load_state_dict(state["state_dict"])
