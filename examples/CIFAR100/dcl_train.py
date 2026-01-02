@@ -112,9 +112,8 @@ def objective(trial):
             all(gate.__class__.__name__ == "CutoffGate" for gate in gates_list)
             and i != 0
         ):
-            load_checkpoint(
-                model=model, save_dir=f"checkpoint/pre-train/{model_name}", is_best=True
-            )
+            checkpoint_path = os.path.join(f"checkpoint/pre-train/{model_name}", "best_checkpoint.pkl")
+            load_checkpoint(model=model, checkpoint_path=checkpoint_path)
         writer = SummaryWriter(
             f"runs/dcl_{num_nodes}/{trial.number:04}/{i}_{model_name}"
         )

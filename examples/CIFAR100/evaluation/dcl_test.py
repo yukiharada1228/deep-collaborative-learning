@@ -149,7 +149,8 @@ def main():
         # Load pretrained checkpoint (when all inputs are Cutoff and i!=0)
         if all_cutoff and i != 0:
             pretrain_dir = os.path.join("checkpoint", "pre-train", model_name)
-            load_checkpoint(model=model, save_dir=pretrain_dir, is_best=True)
+            checkpoint_path = os.path.join(pretrain_dir, "best_checkpoint.pkl")
+            load_checkpoint(model=model, checkpoint_path=checkpoint_path)
 
         writer = SummaryWriter(
             f"runs/dcl_{args.num_nodes}/{best_trial.number:04}/{i}_{model_name}"
