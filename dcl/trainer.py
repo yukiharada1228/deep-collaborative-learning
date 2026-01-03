@@ -30,27 +30,18 @@ class DistillationLink(nn.Module):
         epoch: int,
         is_self_link: bool,
     ):
-        # Compute all losses per-sample (reduction='none')
-        # Gate functions will handle averaging
         if is_self_link:
             loss = self.criterion(target_output, label)
-            # For self-links, no additional information is needed for gate function
             return self.gate(loss, epoch)
         else:
-            # Convert to proper format when using PyTorch's KLDivLoss
             if isinstance(self.criterion, nn.KLDivLoss):
-                # KLDivLoss expects log-probabilities and probabilities
                 target_log_prob = F.log_softmax(target_output, dim=-1)
                 source_prob = F.softmax(source_output.detach(), dim=-1)
                 loss = self.criterion(target_log_prob, source_prob)
-                # With reduction="none", output shape is (batch_size, num_classes)
-                # Sum over class dimension to get per-sample loss (batch_size,)
                 loss = loss.sum(dim=-1)
             else:
                 loss = self.criterion(target_output, source_output)
 
-            # Pass teacher logits and label for CorrectGate
-            # These arguments are ignored by other gate functions
             return self.gate(
                 loss,
                 epoch,
@@ -84,7 +75,6 @@ def build_links(
 class CompositeLoss(nn.Module):
     def __init__(self, links: list[DistillationLink]):
         super(CompositeLoss, self).__init__()
-        # Store all incoming links
         self.incoming_links = nn.ModuleList(links)
 
     def forward(self, model_id, outputs, labels, epoch):
@@ -100,23 +90,18 @@ class CompositeLoss(nn.Module):
 
         for i, link in enumerate(self.incoming_links):
             if i == model_id:
-                # Self-link (supervised loss)
                 supervised_loss = link(target_output, label, None, epoch, True)
             else:
-                # Distillation link
-                # Check if the gate is CutoffGate
                 if not isinstance(link.gate, CutoffGate):
                     valid_teacher_count += 1
 
                 dist_loss = link(target_output, None, outputs[i], epoch, False)
                 distillation_losses.append(dist_loss)
 
-        # Sum of distillation losses
         distillation_loss_sum = (
             torch.stack(distillation_losses).sum() if distillation_losses else 0.0
         )
 
-        # Apply averaging if there are valid teachers
         if valid_teacher_count > 0:
             distillation_loss_mean = distillation_loss_sum / valid_teacher_count
         else:
@@ -171,8 +156,6 @@ class DistillationTrainer:
         outputs = []
         labels = []
         for learner in self.learners:
-            # Check if all links have CutoffGate
-            # If so, use eval mode (for pre-trained teacher models)
             all_cutoff = all(
                 isinstance(link.gate, CutoffGate) for link in learner.links
             )
