@@ -1,7 +1,7 @@
 ## CIFAR-100 Experiment Notes
 
 ### Highlights (TL;DR)
-- **baseline (evaluation)**: ??%
+- **baseline (evaluation)**: 71.2%
 - **DML (evaluation)**: ??% (+??pt vs baseline)
 - **DCL (evaluation)**: ??% (+??pt vs baseline)
 
