@@ -27,7 +27,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--gates",
-    default=["ThroughGate", "CutoffGate", "LinearGate", "CorrectGate"],
+    default=["ThroughGate", "CutoffGate"],
     nargs="*",
     type=str,
 )
