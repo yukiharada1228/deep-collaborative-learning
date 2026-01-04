@@ -26,7 +26,12 @@ wd = float(args.wd)
 # Fix the seed value
 set_seed(manualSeed)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 
 # Prepare the CIFAR-100 for training
 batch_size = 64

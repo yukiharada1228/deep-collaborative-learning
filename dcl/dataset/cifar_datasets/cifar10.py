@@ -12,7 +12,12 @@ def _compute_mean_std(subset_like):
     )
     h, w = 0, 0
     for batch_idx, (inputs, _) in enumerate(loader):
-        inputs = inputs.cuda()
+        if torch.cuda.is_available():
+            inputs = inputs.cuda()
+        elif torch.backends.mps.is_available():
+            inputs = inputs.to("mps")
+        else:
+            inputs = inputs.cpu()
         if batch_idx == 0:
             h, w = inputs.size(2), inputs.size(3)
             chsum = inputs.sum(dim=(0, 2, 3), keepdim=True)
@@ -21,7 +26,12 @@ def _compute_mean_std(subset_like):
     mean = chsum / len(subset_like) / h / w
     chsum = None
     for batch_idx, (inputs, _) in enumerate(loader):
-        inputs = inputs.cuda()
+        if torch.cuda.is_available():
+            inputs = inputs.cuda()
+        elif torch.backends.mps.is_available():
+            inputs = inputs.to("mps")
+        else:
+            inputs = inputs.cpu()
         if batch_idx == 0:
             chsum = (inputs - mean).pow(2).sum(dim=(0, 2, 3), keepdim=True)
         else:

@@ -62,7 +62,12 @@ def main():
 
     set_seed(args.seed)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
 
     study_name = args.study_name or f"dcl_{args.num_nodes}"
     optuna_dir = os.path.join("../optuna", study_name)
@@ -146,7 +151,7 @@ def main():
         all_cutoff = all(g.__class__.__name__ == "CutoffGate" for g in gates_list)
 
         model_name = model_names[i]
-        model = getattr(cifar_models, model_name)(num_classes).cuda()
+        model = getattr(cifar_models, model_name)(num_classes).to(device)
 
         # Load pretrained checkpoint (when all inputs are Cutoff and i!=0)
         if all_cutoff and i != 0:
@@ -172,7 +177,7 @@ def main():
         learner = Learner(
             model=model,
             writer=writer,
-            scaler=torch.amp.GradScaler("cuda"),
+            scaler=torch.amp.GradScaler(device.type, enabled=(device.type == "cuda")),
             save_dir=save_dir,
             optimizer=optimizer,
             scheduler=scheduler,
