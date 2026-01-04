@@ -1,3 +1,5 @@
+# Deep Collaborative Learning (DCL)
+
 <p style="display: inline">
   <img src="https://img.shields.io/badge/-Python-F2C63C.svg?logo=python&style=for-the-badge">
   <img src="https://img.shields.io/badge/-Pytorch-11b3d3.svg?logo=pytorch&style=for-the-badge">
@@ -5,11 +7,17 @@
   <!-- <img src="https://img.shields.io/badge/-Docker-eb7739.svg?logo=docker&style=for-the-badge"> -->
 </p>
 
-# Deep Collaborative Learning (DCL)
-
 This repository implements the "Knowledge Transfer Graph for Deep Collaborative Learning" described in the [ACCV 2020 accepted paper](https://openaccess.thecvf.com/content/ACCV2020/html/Minami_Knowledge_Transfer_Graph_for_Deep_Collaborative_Learning_ACCV_2020_paper.html). This implementation faithfully follows the original paper, including all four gate functions proposed in the paper.
 
 The package is named `dcl` (Deep Collaborative Learning) for ease of use in your code.
+
+## Note on Loss Calculation (Unique Modification)
+To ensure training stability, this implementation applies a unique modification to the loss aggregation method, differing from the original paper.
+
+- **Original Paper**: Sums (`sum`) the distillation losses from all teachers.
+- **This Implementation**: **Averages** (`mean`) the distillation losses over the number of valid teachers (i.e., teachers connected via gates other than `CutoffGate`).
+
+This prevents the total loss scale from fluctuating drastically with the number of teachers, ensuring more stable training.
 
 ## Gate Functions
 The implementation includes the four gate functions as described in the original paper:
