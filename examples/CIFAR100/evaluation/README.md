@@ -18,12 +18,12 @@ cd examples/CIFAR100/evaluation
   uv run evaluate_baseline.py
   ```
 
-- **DCL Evaluation**:
-  ```bash
-  uv run evaluate_dcl.py
-  ```
-
 - **DML Evaluation**:
   ```bash
   uv run evaluate_dml.py
+  ```
+
+- **DCL Evaluation**:
+  ```bash
+  uv run evaluate_dcl.py
   ```
