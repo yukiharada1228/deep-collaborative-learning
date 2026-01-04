@@ -123,7 +123,7 @@ class Learner:
     score_meter: AverageMeter
     scheduler: LRScheduler = None
     best_score: float = 0.0
-    eval: nn.Module = accuracy
+    eval_fn: nn.Module = accuracy
     save_dir: Optional[str] = None
 
     def __post_init__(self):
@@ -183,7 +183,7 @@ class DistillationTrainer:
                     learner.scaler.step(learner.optimizer)
                     learner.optimizer.zero_grad()
                     learner.scaler.update()
-            [top1] = learner.eval(outputs[model_id], labels[model_id], topk=(1,))
+            [top1] = learner.eval_fn(outputs[model_id], labels[model_id], topk=(1,))
             learner.score_meter.update(top1.item(), labels[model_id].size(0))
             learner.loss_meter.update(loss.item(), labels[model_id].size(0))
 
@@ -202,7 +202,7 @@ class DistillationTrainer:
             labels.append(label)
 
         for model_id, learner in enumerate(self.learners):
-            [top1] = learner.eval(outputs[model_id], labels[model_id], topk=(1,))
+            [top1] = learner.eval_fn(outputs[model_id], labels[model_id], topk=(1,))
             learner.score_meter.update(top1.item(), labels[model_id].size(0))
 
     def train(self):
