@@ -28,18 +28,14 @@ class DistillationLink(nn.Module):
         epoch: int,
     ):
         if source_output is None:
-            loss = self.criterion(target_output, label)
-            return loss.mean()
+            return self.criterion(target_output, label)
         else:
             if isinstance(self.criterion, nn.KLDivLoss):
                 target_log_prob = F.log_softmax(target_output, dim=-1)
                 source_prob = F.softmax(source_output.detach(), dim=-1)
-                loss = self.criterion(target_log_prob, source_prob)
-                loss = loss.sum(dim=-1)
+                return self.criterion(target_log_prob, source_prob)
             else:
-                loss = self.criterion(target_output, source_output)
-
-            return loss.mean()
+                return self.criterion(target_output, source_output)
 
 
 def build_links(criterions: list[nn.Module]) -> list[DistillationLink]:

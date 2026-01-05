@@ -104,7 +104,7 @@ num_classes = 100
 learners = []
 
 
-criterions = [nn.CrossEntropyLoss(reduction="none")]
+criterions = [nn.CrossEntropyLoss(reduction="mean")]
 model = getattr(cifar_models, model_name)(num_classes).to(device)
 writer = SummaryWriter(f"runs/pre-train/{model_name}")
 save_dir = f"checkpoint/pre-train/{model_name}"

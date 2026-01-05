@@ -127,9 +127,9 @@ for i, model_name in enumerate(models_name):
     criterions = []
     for j in range(num_nodes):
         if i == j:
-            criterions.append(nn.CrossEntropyLoss(reduction="none"))
+            criterions.append(nn.CrossEntropyLoss(reduction="mean"))
         else:
-            criterions.append(nn.KLDivLoss(reduction="none"))
+            criterions.append(nn.KLDivLoss(reduction="batchmean"))
 
     model = getattr(cifar_models, model_name)(num_classes).to(device)
 
