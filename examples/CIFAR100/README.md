@@ -25,18 +25,61 @@ uv run dml_train.py --models resnet32 --num-nodes 2
 
 ### Independent Training
 
-| Model | Final Test Acc | Best Test Acc |
-|-------|----------------|---------------|
-| ResNet-32 | 71.19% | 71.24% |
+| Model | Test Acc |
+|-------|----------|
+| ResNet-32 | 71.19% |
 
-### DML Training (2 Nodes)
+### DML Training
 
-| Node | Model | Final Test Acc | Best Test Acc |
-|------|-------|----------------|---------------|
-| 0 | ResNet-32 | 61.24% | 61.24% |
-| 1 | ResNet-32 | 61.34% | 61.59% |
+#### 2 Nodes
 
-*Note: DML training is currently in progress, so results are preliminary.*
+| Node | Test Acc |
+|------|----------|
+| 0 | 72.04% |
+| 1 | 72.19% |
+| **Average** | **72.12%** |
+
+#### 3 Nodes
+
+| Node | Test Acc |
+|------|----------|
+| 0 | 72.52% |
+| 1 | 73.31% |
+| 2 | 72.10% |
+| **Average** | **72.64%** |
+
+#### 4 Nodes
+
+| Node | Test Acc |
+|------|----------|
+| 0 | 73.11% |
+| 1 | 72.99% |
+| 2 | 73.63% |
+| 3 | 73.10% |
+| **Average** | **73.21%** |
+
+#### 5 Nodes (In Progress - 15/200 epochs)
+
+| Node | Test Acc |
+|------|----------|
+| 0 | 39.16% |
+| 1 | 41.02% |
+| 2 | 43.38% |
+| 3 | 43.63% |
+| 4 | 42.31% |
+| **Average** | **41.90%** |
+
+#### 6 Nodes (In Progress - 12/200 epochs)
+
+| Node | Test Acc |
+|------|----------|
+| 0 | 45.17% |
+| 1 | 41.62% |
+| 2 | 44.89% |
+| 3 | 44.13% |
+| 4 | 42.92% |
+| 5 | 41.82% |
+| **Average** | **43.42%** |
 
 ## TensorBoard Logs
 
