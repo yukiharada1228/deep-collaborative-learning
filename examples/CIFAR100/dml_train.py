@@ -3,10 +3,9 @@ import os
 
 import torch
 import torch.nn as nn
+import torchvision
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-
-import torchvision
 from torchvision import transforms
 
 from dml import DistillationTrainer, Learner, build_links

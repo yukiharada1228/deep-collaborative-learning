@@ -15,7 +15,6 @@ from torch.utils.tensorboard import SummaryWriter
 from dml.utils import AverageMeter, accuracy, save_checkpoint
 
 
-
 class DistillationLink(nn.Module):
     def __init__(self, criterion: nn.Module):
         super(DistillationLink, self).__init__()

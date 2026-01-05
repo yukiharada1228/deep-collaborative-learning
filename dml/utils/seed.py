@@ -12,7 +12,7 @@ def set_seed(manualSeed: int):
         # if True, causes cuDNN to benchmark multiple convolution algorithms and select the fastest.
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True  # if True, causes cuDNN to only use deterministic convolution algorithms.
-    
+
     if torch.backends.mps.is_available():
         torch.mps.manual_seed(manualSeed)
 

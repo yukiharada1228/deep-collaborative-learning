@@ -2,14 +2,12 @@ import argparse
 
 import torch
 import torch.nn as nn
+import torchvision
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-
-import torchvision
 from torchvision import transforms
 
 from dml import DistillationTrainer, Learner, build_links
-
 from dml.models import cifar_models
 from dml.utils import AverageMeter, WorkerInitializer, set_seed
 
