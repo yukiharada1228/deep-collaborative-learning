@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 version = "0.0.1"
-name = "dcl"
-description = "Deep Collaborative Learning"
+name = "dml"
+description = "Deep Mutual Learning"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [
@@ -31,4 +31,4 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["dcl"]
+packages = ["dml"]

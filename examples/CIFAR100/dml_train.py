@@ -9,9 +9,9 @@ from torch.utils.tensorboard import SummaryWriter
 import torchvision
 from torchvision import transforms
 
-from dcl import DistillationTrainer, Learner, build_links, gates
-from dcl.models import cifar_models
-from dcl.utils import AverageMeter, WorkerInitializer, set_seed
+from dml import DistillationTrainer, Learner, build_links
+from dml.models import cifar_models
+from dml.utils import AverageMeter, WorkerInitializer, set_seed
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--seed", default=42, type=int)
@@ -125,15 +125,12 @@ scheduler_setting = {
 num_classes = 100
 learners = []
 for i, model_name in enumerate(models_name):
-    gates_list = []
     criterions = []
     for j in range(num_nodes):
         if i == j:
             criterions.append(nn.CrossEntropyLoss(reduction="none"))
         else:
             criterions.append(nn.KLDivLoss(reduction="none"))
-        # In DML, we use ThroughGate for all connections
-        gates_list.append(gates.ThroughGate(max_epoch))
 
     model = getattr(cifar_models, model_name)(num_classes).to(device)
 
@@ -149,7 +146,7 @@ for i, model_name in enumerate(models_name):
     scheduler = getattr(torch.optim.lr_scheduler, scheduler_setting["name"])(
         optimizer, **scheduler_setting["args"]
     )
-    links = build_links(criterions, gates_list)
+    links = build_links(criterions)
 
     learner = Learner(
         model=model,

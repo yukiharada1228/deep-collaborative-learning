@@ -1,37 +1,20 @@
-# Deep Collaborative Learning (DCL)
+# Deep Mutual Learning (DML)
 
 <p style="display: inline">
   <img src="https://img.shields.io/badge/-Python-F2C63C.svg?logo=python&style=for-the-badge">
   <img src="https://img.shields.io/badge/-Pytorch-11b3d3.svg?logo=pytorch&style=for-the-badge">
-  <img src="https://img.shields.io/badge/-arxiv-B31B1B.svg?logo=arxiv&style=for-the-badge">
-  <!-- <img src="https://img.shields.io/badge/-Docker-eb7739.svg?logo=docker&style=for-the-badge"> -->
 </p>
 
-This repository implements the "Knowledge Transfer Graph for Deep Collaborative Learning" described in the [ACCV 2020 accepted paper](https://openaccess.thecvf.com/content/ACCV2020/html/Minami_Knowledge_Transfer_Graph_for_Deep_Collaborative_Learning_ACCV_2020_paper.html). This implementation faithfully follows the original paper, including all four gate functions proposed in the paper.
+This repository implements the Deep Mutual Learning.
 
-The package is named `dcl` (Deep Collaborative Learning) for ease of use in your code.
-
-## Note on Loss Calculation (Unique Modification)
-To ensure training stability, this implementation applies a unique modification to the loss aggregation method, differing from the original paper.
-
-- **Original Paper**: Sums (`sum`) the distillation losses from all teachers.
-- **This Implementation**: **Averages** (`mean`) the distillation losses over the number of valid teachers (i.e., teachers connected via gates other than `CutoffGate`).
-
-This prevents the total loss scale from fluctuating drastically with the number of teachers, ensuring more stable training.
-
-## Gate Functions
-The implementation includes the four gate functions as described in the original paper:
-- **ThroughGate**: Passes the loss without modification
-- **CutoffGate**: Blocks knowledge transfer by returning zero loss
-- **LinearGate**: Linearly increases the weight of the loss from 0 to 1 as training progresses
-- **CorrectGate**: Filters samples based on the correctness of teacher and student predictions, using only samples where the teacher made correct predictions
+The package is named `dml` (Deep Mutual Learning) for ease of use in your code.
 
 ## Usage
-To use Deep Collaborative Learning in your project, follow these steps:
+To use Deep Mutual Learning in your project, follow these steps:
 1. Clone the repository:
 ```bash
-git clone https://github.com/yukiharada1228/deep-collaborative-learning.git
-cd deep-collaborative-learning
+git clone https://github.com/yukiharada1228/deep-mutual-learning.git
+cd deep-mutual-learning
 ```
 2. Install the package:
 ```bash
@@ -40,4 +23,4 @@ uv sync
 
 ## Acknowledgements
 
-This implementation is based on the original paper ["Knowledge Transfer Graph for Deep Collaborative Learning"](https://arxiv.org/abs/1909.04286) by Soma Minami, Tsubasa Hirakawa, Takayoshi Yamashita, and Hironobu Fujiyoshi. I acknowledge and appreciate their valuable contributions to the field.
+This implementation is based on the paper ["Deep Mutual Learning"](https://arxiv.org/abs/1706.00384) by Ying Zhang, Tao Xiang, Timothy M. Hospedales, and Huchuan Lu. I acknowledge and appreciate their valuable contributions to the field.

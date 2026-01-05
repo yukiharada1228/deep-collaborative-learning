@@ -12,15 +12,14 @@ from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from dcl.gates import CutoffGate
-from dcl.utils import AverageMeter, accuracy, save_checkpoint
+from dml.utils import AverageMeter, accuracy, save_checkpoint
+
 
 
 class DistillationLink(nn.Module):
-    def __init__(self, criterion: nn.Module, gate: nn.Module):
+    def __init__(self, criterion: nn.Module):
         super(DistillationLink, self).__init__()
         self.criterion = criterion
-        self.gate = gate
 
     def forward(
         self,
@@ -31,7 +30,7 @@ class DistillationLink(nn.Module):
     ):
         if source_output is None:
             loss = self.criterion(target_output, label)
-            return self.gate(loss, epoch)
+            return loss.mean()
         else:
             if isinstance(self.criterion, nn.KLDivLoss):
                 target_log_prob = F.log_softmax(target_output, dim=-1)
@@ -41,34 +40,14 @@ class DistillationLink(nn.Module):
             else:
                 loss = self.criterion(target_output, source_output)
 
-            return self.gate(
-                loss,
-                epoch,
-                teacher_logits=source_output,
-                label=label,
-            )
+            return loss.mean()
 
 
-def build_links(
-    criterions: list[nn.Module], gates: list[nn.Module]
-) -> list[DistillationLink]:
+def build_links(criterions: list[nn.Module]) -> list[DistillationLink]:
     """
-    Build a list of DistillationLink instances with simple length validation and one-sided broadcast.
-
-    - If either `criterions` or `gates` has length 1 while the other has length N>1,
-      it will be broadcast to length N.
-    - Otherwise, their lengths must match.
+    Build a list of DistillationLink instances.
     """
-    if len(criterions) == 1 and len(gates) > 1:
-        criterions = criterions * len(gates)
-    if len(gates) == 1 and len(criterions) > 1:
-        gates = gates * len(criterions)
-    if len(criterions) != len(gates):
-        raise ValueError(
-            f"criterions({len(criterions)}) and gates({len(gates)}) must match in length "
-            "or one of them must be length 1 for broadcasting"
-        )
-    return [DistillationLink(c, g) for c, g in zip(criterions, gates)]
+    return [DistillationLink(c) for c in criterions]
 
 
 class CompositeLoss(nn.Module):
@@ -86,24 +65,16 @@ class CompositeLoss(nn.Module):
         )
 
         # Distillation Loss (Other links)
-        distillation_loss_sum = 0.0
-        valid_teacher_count = 0
+        distillation_losses = [
+            link(target_output, None, outputs[i], epoch)
+            for i, link in enumerate(self.incoming_links)
+            if i != model_id
+        ]
 
-        for i, link in enumerate(self.incoming_links):
-            if i == model_id:
-                continue
-
-            if not isinstance(link.gate, CutoffGate):
-                valid_teacher_count += 1
-
-            distillation_loss_sum = distillation_loss_sum + link(
-                target_output, None, outputs[i], epoch
-            )
-
-        if valid_teacher_count > 0:
-            distillation_loss_mean = distillation_loss_sum / valid_teacher_count
+        if distillation_losses:
+            distillation_loss_mean = torch.stack(distillation_losses).mean()
         else:
-            distillation_loss_mean = supervised_loss.new_zeros(())
+            distillation_loss_mean = torch.zeros_like(supervised_loss)
 
         return supervised_loss + distillation_loss_mean
 
@@ -158,17 +129,9 @@ class DistillationTrainer:
         outputs = []
         labels = []
         for learner in self.learners:
-            all_cutoff = all(
-                isinstance(link.gate, CutoffGate) for link in learner.links
-            )
-            if all_cutoff:
-                learner.model.eval()
-                with torch.no_grad(), torch.amp.autocast(device_type=self.device.type):
-                    y = learner.model(image)
-            else:
-                learner.model.train()
-                with torch.amp.autocast(device_type=self.device.type):
-                    y = learner.model(image)
+            learner.model.train()
+            with torch.amp.autocast(device_type=self.device.type):
+                y = learner.model(image)
             outputs.append(y)
             labels.append(label)
 

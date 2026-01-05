@@ -7,7 +7,6 @@ __all__ = (
     "__version__",
     "models",
     "utils",
-    "gates",
     "losses",
     "DistillationTrainer",
     "Learner",
