@@ -138,7 +138,7 @@ for i, model_name in enumerate(models_name):
     save_dir = f"checkpoint/dml/{i}_{model_name}"
 
     # Tensorboard writer
-    writer = SummaryWriter(f"runs/dml/{i}_{model_name}")
+    writer = SummaryWriter(f"runs/dml_{num_nodes}/{i}_{model_name}")
 
     optimizer = getattr(torch.optim, optim_setting["name"])(
         model.parameters(), **optim_setting["args"]
