@@ -43,7 +43,7 @@ teacher_model_name = args.teacher_model
 student_model_name = args.student_model
 
 # Auto-generate teacher checkpoint path from teacher model name
-teacher_checkpoint = f"checkpoint/independent/{teacher_model_name}/model_best.pth"
+teacher_checkpoint = f"checkpoint/independent/{teacher_model_name}/best_checkpoint.pkl"
 if not os.path.exists(teacher_checkpoint):
     teacher_checkpoint = None
 
