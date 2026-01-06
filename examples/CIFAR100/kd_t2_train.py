@@ -1,3 +1,14 @@
+"""
+Knowledge Distillation with Temperature T=2
+Teacher: WideResNet28-2 (pre-trained) -> Student: ResNet32
+
+Settings:
+- Teacher: WRN28-2 (frozen or pre-trained)
+- Student: ResNet32 (learns from teacher)
+- Temperature: 2.0 for knowledge distillation
+- One-way distillation (not mutual learning)
+"""
+
 import argparse
 import os
 import time
@@ -10,33 +21,55 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
+from dml import CompositeLoss, build_links
 from dml.utils import (AverageMeter, WorkerInitializer, accuracy,
-                       save_checkpoint, set_seed)
+                       load_checkpoint, save_checkpoint, set_seed)
 
-parser = argparse.ArgumentParser(description="Independent Training on CIFAR-100")
+parser = argparse.ArgumentParser(
+    description="Knowledge Distillation (T=2) on CIFAR-100"
+)
 parser.add_argument("--seed", default=42, type=int, help="Random seed")
 parser.add_argument("--lr", default=0.1, type=float, help="Learning rate")
 parser.add_argument("--wd", default=5e-4, type=float, help="Weight decay")
+parser.add_argument(
+    "--temperature", default=2.0, type=float, help="Distillation temperature"
+)
 parser.add_argument("--batch-size", default=64, type=int, help="Batch size")
 parser.add_argument("--epochs", default=200, type=int, help="Number of epochs")
-parser.add_argument("--model", default="resnet32", type=str, help="Model name")
+parser.add_argument(
+    "--teacher-model", default="wideresnet28_2", type=str, help="Teacher model name"
+)
+parser.add_argument(
+    "--student-model", default="resnet32", type=str, help="Student model name"
+)
 
 args = parser.parse_args()
 manualSeed = int(args.seed)
 lr = float(args.lr)
 wd = float(args.wd)
+temperature = args.temperature
 batch_size = args.batch_size
 max_epoch = args.epochs
-model_name = args.model
+teacher_model_name = args.teacher_model
+student_model_name = args.student_model
+
+# Auto-generate teacher checkpoint path from teacher model name
+teacher_checkpoint = f"checkpoint/independent/{teacher_model_name}/model_best.pth"
+if not os.path.exists(teacher_checkpoint):
+    teacher_checkpoint = None
 
 print("=" * 60)
-print(f"Independent Training: {model_name}")
+print(f"Knowledge Distillation with Temperature T={temperature}")
 print("=" * 60)
+print(f"Teacher: {teacher_model_name}")
+print(f"Student: {student_model_name}")
 print(f"Seed: {manualSeed}")
 print(f"Learning rate: {lr}")
 print(f"Weight decay: {wd}")
 print(f"Batch size: {batch_size}")
 print(f"Epochs: {max_epoch}")
+if teacher_checkpoint:
+    print(f"Teacher checkpoint: {teacher_checkpoint}")
 print("=" * 60)
 print()
 
@@ -104,17 +137,38 @@ val_dataloader = DataLoader(
 
 num_classes = 100
 
-print("Setting up model...")
+print("Setting up models...")
 print()
 
-# Setup model, optimizer, and loss function
-model = getattr(cifar_models, model_name)(num_classes).to(device)
-model_params = sum(p.numel() for p in model.parameters())
-print(f"Model ({model_name}): {model_params:,} parameters")
+# Create teacher model
+teacher = getattr(cifar_models, teacher_model_name)(num_classes).to(device)
+teacher_params = sum(p.numel() for p in teacher.parameters())
+print(f"Teacher ({teacher_model_name}): {teacher_params:,} parameters")
+
+# Load pre-trained teacher if checkpoint provided
+if teacher_checkpoint:
+    print(f"Loading teacher checkpoint from {teacher_checkpoint}")
+    load_checkpoint(teacher, teacher_checkpoint)
+    print("Teacher checkpoint loaded")
+else:
+    print("No teacher checkpoint provided - teacher will be trained from scratch")
+
+# Teacher is in eval mode and frozen
+teacher.eval()
+for param in teacher.parameters():
+    param.requires_grad = False
+
 print()
 
+# Create student model
+student = getattr(cifar_models, student_model_name)(num_classes).to(device)
+student_params = sum(p.numel() for p in student.parameters())
+print(f"Student ({student_model_name}): {student_params:,} parameters")
+print()
+
+# Optimizer and scheduler for student only
 optimizer = torch.optim.SGD(
-    model.parameters(),
+    student.parameters(),
     lr=lr,
     momentum=0.9,
     weight_decay=wd,
@@ -125,14 +179,40 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
     optimizer, T_max=max_epoch, eta_min=0.0
 )
 
-criterion = nn.CrossEntropyLoss(reduction="mean")
 scaler = torch.amp.GradScaler(device.type, enabled=(device.type == "cuda"))
 
+# Setup loss functions for student
+# Index 0: student (self-link)
+# Index 1: teacher (cross-link from teacher to student)
+criterions = [
+    nn.CrossEntropyLoss(reduction="mean"),  # Student self-link (supervised)
+    nn.KLDivLoss(reduction="batchmean"),  # Student learns from teacher (KD)
+]
+
+temperatures_list = [
+    None,  # Student supervised: temperature not used for CrossEntropyLoss
+    temperature,  # Distillation: T=2
+]
+
+links = build_links(criterions, temperatures=temperatures_list)
+composite_loss = CompositeLoss(links)
+
+print("Student loss configuration:")
+for i, link in enumerate(links):
+    link_type = "Self (supervised)" if i == 0 else "Teacher → Student (KD)"
+    temp_str = f"{link.temperature:.1f}" if link.temperature is not None else "N/A"
+    print(f"  Link {i} ({link_type}): T={temp_str}")
+print()
+
 # Setup logging and checkpointing
-save_dir = f"checkpoint/independent/{model_name}"
+save_dir = (
+    f"checkpoint/kd_t{temperature:.1f}/{student_model_name}_from_{teacher_model_name}"
+)
 os.makedirs(save_dir, exist_ok=True)
 
-writer = SummaryWriter(f"runs/independent/{model_name}")
+writer = SummaryWriter(
+    f"runs/kd_t{temperature:.1f}/{student_model_name}_from_{teacher_model_name}"
+)
 best_score = 0.0
 
 print("=" * 60)
@@ -149,24 +229,37 @@ for epoch in range(1, max_epoch + 1):
     train_loss_meter = AverageMeter()
     train_score_meter = AverageMeter()
 
-    model.train()
     for image, label in train_dataloader:
         image = image.to(device)
         label = label.to(device)
 
-        # Forward pass
-        with torch.amp.autocast(device_type=device.type):
-            output = model(image)
-            loss = criterion(output, label)
+        # Forward pass: both student and teacher
+        student.train()
+        teacher.eval()  # Teacher always in eval mode
 
-        # Backward pass
+        with torch.amp.autocast(device_type=device.type):
+            student_output = student(image)
+
+        with torch.amp.autocast(device_type=device.type):
+            with torch.no_grad():
+                teacher_output = teacher(image)
+
+        # Compute student loss (supervised + distillation)
+        outputs = [student_output, teacher_output]
+        labels = [label, label]
+
+        with torch.amp.autocast(device_type=device.type):
+            # Model ID 0 = student
+            loss = composite_loss(0, outputs, labels, epoch - 1)
+
+        # Backward pass (student only)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         optimizer.zero_grad()
         scaler.update()
 
         # Metrics
-        [top1] = accuracy(output, label, topk=(1,))
+        [top1] = accuracy(student_output, label, topk=(1,))
         train_score_meter.update(top1.item(), label.size(0))
         train_loss_meter.update(loss.item(), label.size(0))
 
@@ -186,14 +279,14 @@ for epoch in range(1, max_epoch + 1):
     # Validation phase
     test_score_meter = AverageMeter()
 
-    model.eval()
+    student.eval()
     for image, label in val_dataloader:
         image = image.to(device)
         label = label.to(device)
 
         with torch.amp.autocast(device_type=device.type):
             with torch.no_grad():
-                output = model(image)
+                output = student(image)
 
         [top1] = accuracy(output, label, topk=(1,))
         test_score_meter.update(top1.item(), label.size(0))
@@ -206,7 +299,7 @@ for epoch in range(1, max_epoch + 1):
 
     if test_score >= best_score:
         best_score = test_score
-        save_checkpoint(model, save_dir, epoch, is_best=True)
+        save_checkpoint(student, save_dir, epoch, is_best=True)
         print(" [BEST]")
     else:
         print()
@@ -221,5 +314,5 @@ writer.close()
 print("=" * 60)
 print("Training completed!")
 print("=" * 60)
-print(f"Best test accuracy: {best_score:.2f}%")
+print(f"Best test accuracy (Student): {best_score:.2f}%")
 print("=" * 60)
