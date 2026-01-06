@@ -211,10 +211,11 @@ for epoch in range(1, max_epoch + 1):
 
     if test_score >= best_score:
         best_score = test_score
-        save_checkpoint(model, save_dir, epoch, is_best=True)
         print(" [BEST]")
     else:
         print()
+
+    save_checkpoint(model, save_dir, epoch, filename="latest_checkpoint.pkl")
 
     elapsed_time = time.time() - start_time
     print(f"  Elapsed time: {elapsed_time:.2f}s")

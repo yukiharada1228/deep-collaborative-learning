@@ -43,7 +43,7 @@ teacher_model_name = args.teacher_model
 student_model_name = args.student_model
 
 # Auto-generate teacher checkpoint path from teacher model name
-teacher_checkpoint = f"checkpoint/independent/{teacher_model_name}/best_checkpoint.pkl"
+teacher_checkpoint = f"checkpoint/independent/{teacher_model_name}/latest_checkpoint.pkl"
 if not os.path.exists(teacher_checkpoint):
     teacher_checkpoint = None
 
@@ -288,10 +288,11 @@ for epoch in range(1, max_epoch + 1):
 
     if test_score >= best_score:
         best_score = test_score
-        save_checkpoint(student, save_dir, epoch, is_best=True)
         print(" [BEST]")
     else:
         print()
+
+    save_checkpoint(student, save_dir, epoch, filename="latest_checkpoint.pkl")
 
     elapsed_time = time.time() - start_time
     print(f"  Elapsed time: {elapsed_time:.2f}s")
