@@ -5,13 +5,14 @@ import time
 import torch
 import torch.nn as nn
 import torchvision
-from models import cifar_models
+from dml import CompositeLoss, build_links
+from dml.utils import (AverageMeter, WorkerInitializer, accuracy,
+                       save_checkpoint, set_seed)
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
-from dml.utils import (AverageMeter, WorkerInitializer, accuracy,
-                       save_checkpoint, set_seed)
+from models import cifar_models
 
 parser = argparse.ArgumentParser(description="Independent Training on CIFAR-100")
 parser.add_argument("--seed", default=42, type=int, help="Random seed")
@@ -125,7 +126,10 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
     optimizer, T_max=max_epoch, eta_min=0.0
 )
 
-criterion = nn.CrossEntropyLoss(reduction="mean")
+# Use CompositeLoss from dml package
+criterion_ce = nn.CrossEntropyLoss(reduction="mean")
+links = build_links([criterion_ce])
+criterion = CompositeLoss(links)
 scaler = torch.amp.GradScaler(device.type, enabled=(device.type == "cuda"))
 
 # Setup logging and checkpointing
@@ -157,7 +161,8 @@ for epoch in range(1, max_epoch + 1):
         # Forward pass
         with torch.amp.autocast(device_type=device.type):
             output = model(image)
-            loss = criterion(output, label)
+            # CompositeLoss expects list of outputs and labels, and model_id
+            loss = criterion(0, [output], [label], epoch)
 
         # Backward pass
         scaler.scale(loss).backward()
