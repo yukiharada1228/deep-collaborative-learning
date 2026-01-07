@@ -112,9 +112,10 @@ class DoGoLoss(nn.Module):
         temperature: Temperature parameter for softmax scaling (default: 0.1).
     """
 
-    def __init__(self, temperature: float = 0.1) -> None:
+    def __init__(self, temperature: float = 0.1, loss_weight: float = 100) -> None:
         super(DoGoLoss, self).__init__()
         self.temperature = temperature
+        self.loss_weight = loss_weight
         # Cosine similarity function (computes similarity along dim=2)
         self.similarity_fn = nn.CosineSimilarity(dim=2)
         # KL divergence loss with batch mean reduction
@@ -165,5 +166,9 @@ class DoGoLoss(nn.Module):
 
         # Compute KL divergence and scale by T² to compensate for gradient scaling
         # (following Hinton et al., "Distilling the Knowledge in a Neural Network")
-        loss = self.criterion(log_prob_target, prob_source) * (self.temperature**2)
+        loss = (
+            self.loss_weight
+            * self.criterion(log_prob_target, prob_source)
+            * (self.temperature**2)
+        )
         return loss

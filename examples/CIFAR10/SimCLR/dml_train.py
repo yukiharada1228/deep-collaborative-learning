@@ -8,13 +8,14 @@ from dml import (LARS, CompositeLoss, build_links,
                  get_cosine_schedule_with_warmup)
 from dml.utils import (AverageMeter, WorkerInitializer, save_checkpoint,
                        set_seed)
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from torchvision import transforms
+
 from knn_eval import evaluate_knn
 from losses import DoGoLoss, SimCLRLoss
 from models import cifar_models
 from models.simclr_model import SimCLR
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from torchvision import transforms
 from transform import SimCLRTransforms
 
 parser = argparse.ArgumentParser(description="SimCLR + DoGo on CIFAR-10")
@@ -38,6 +39,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "--dogo-temperature", default=0.1, type=float, help="Temperature for DoGo"
+)
+parser.add_argument(
+    "--loss-weight", default=100.0, type=float, help="Weight for DoGo loss"
 )
 parser.add_argument(
     "--color-jitter-strength", default=0.5, type=float, help="Color jitter strength"
@@ -84,6 +88,7 @@ optimizer_type = args.optimizer
 momentum = args.momentum
 temperature = args.temperature
 dogo_temperature = args.dogo_temperature
+loss_weight = args.loss_weight
 color_jitter_strength = args.color_jitter_strength
 use_blur = args.use_blur
 num_nodes = args.num_nodes
@@ -112,6 +117,7 @@ print(f"Warmup epochs: {warmup_epochs}")
 print(f"Optimizer: {optimizer_type}")
 print(f"SimCLR Temperature: {temperature}")
 print(f"DoGo Temperature: {dogo_temperature}")
+print(f"DoGo Loss Weight: {loss_weight}")
 print(f"Projection dim: {projection_dim}")
 print("=" * 60)
 print()
@@ -267,7 +273,9 @@ for i, model_name in enumerate(models_name):
             temperatures_list.append(None)
         else:
             # Cross-link: DoGo loss (knowledge distillation)
-            criterions.append(DoGoLoss(temperature=dogo_temperature))
+            criterions.append(
+                DoGoLoss(temperature=dogo_temperature, loss_weight=loss_weight)
+            )
             temperatures_list.append(dogo_temperature)
 
     links = build_links(criterions, temperatures=temperatures_list)
