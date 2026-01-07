@@ -7,41 +7,6 @@ import torch
 import torch.nn as nn
 
 
-class SimCLRProjector(nn.Module):
-    """Projection head (MLP) for SimCLR.
-
-    Maps encoder representations to a lower-dimensional space where
-    contrastive loss is applied.
-
-    Args:
-        input_dim: Dimension of input features from encoder.
-        out_dim: Dimension of output projections (default: 128).
-    """
-
-    def __init__(self, input_dim: int, out_dim: int = 128) -> None:
-        super(SimCLRProjector, self).__init__()
-        self.out_dim = out_dim
-        # 2-layer MLP: input_dim -> input_dim -> out_dim
-        # Following SimCLR Appendix B.9 for CIFAR
-        self.projector = nn.Sequential(
-            nn.Linear(input_dim, input_dim, bias=True),
-            nn.ReLU(),
-            nn.Linear(input_dim, out_dim, bias=False),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Project features to contrastive learning space.
-
-        Args:
-            x: Input features of shape (batch_size, input_dim).
-
-        Returns:
-            Projected features of shape (batch_size, out_dim).
-        """
-        z = self.projector(x)
-        return z
-
-
 class SimCLR(nn.Module):
     """SimCLR model for self-supervised contrastive learning.
 
