@@ -5,14 +5,13 @@ import time
 import torch
 import torch.nn as nn
 import torchvision
+from dml.utils import (AverageMeter, WorkerInitializer, accuracy,
+                       load_checkpoint, save_checkpoint, set_seed)
 from models import cifar_models
 from models.simclr_model import SimCLR
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
-
-from dml.utils import (AverageMeter, WorkerInitializer, accuracy,
-                       load_checkpoint, save_checkpoint, set_seed)
 
 parser = argparse.ArgumentParser(description="Linear Evaluation for SimCLR on CIFAR-10")
 parser.add_argument("--seed", default=42, type=int, help="Random seed")
@@ -141,6 +140,7 @@ with torch.no_grad():
 
 print(f"Encoder output dimension: {encoder_dim}")
 print()
+
 
 # Create linear classifier
 class LinearClassifier(nn.Module):
