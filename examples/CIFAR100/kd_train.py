@@ -5,14 +5,13 @@ import time
 import torch
 import torch.nn as nn
 import torchvision
+from dml import CompositeLoss, build_links
+from dml.utils import (AverageMeter, WorkerInitializer, accuracy,
+                       load_checkpoint, save_checkpoint, set_seed)
 from models import cifar_models
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
-
-from dml import CompositeLoss, build_links
-from dml.utils import (AverageMeter, WorkerInitializer, accuracy,
-                       load_checkpoint, save_checkpoint, set_seed)
 
 parser = argparse.ArgumentParser(
     description="Knowledge Distillation (T=2) on CIFAR-100"

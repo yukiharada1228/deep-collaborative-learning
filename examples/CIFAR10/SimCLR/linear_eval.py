@@ -5,21 +5,29 @@ import time
 import torch
 import torch.nn as nn
 import torchvision
-from dml import CompositeLoss, build_links
-from dml.utils import (AverageMeter, WorkerInitializer, accuracy,
-                       save_checkpoint, set_seed)
 from models import cifar_models
+from models.simclr_model import SimCLR
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
-parser = argparse.ArgumentParser(description="Independent Training on CIFAR-100")
+from dml.utils import (AverageMeter, WorkerInitializer, accuracy,
+                       load_checkpoint, save_checkpoint, set_seed)
+
+parser = argparse.ArgumentParser(description="Linear Evaluation for SimCLR on CIFAR-10")
 parser.add_argument("--seed", default=42, type=int, help="Random seed")
 parser.add_argument("--lr", default=0.1, type=float, help="Learning rate")
-parser.add_argument("--wd", default=5e-4, type=float, help="Weight decay")
-parser.add_argument("--batch-size", default=64, type=int, help="Batch size")
-parser.add_argument("--epochs", default=200, type=int, help="Number of epochs")
-parser.add_argument("--model", default="resnet32", type=str, help="Model name")
+parser.add_argument("--batch-size", default=256, type=int, help="Batch size")
+parser.add_argument("--epochs", default=100, type=int, help="Number of epochs")
+parser.add_argument("--model", default="resnet18", type=str, help="Model name")
+parser.add_argument("--projection-dim", default=128, type=int, help="Projection dim")
+parser.add_argument("--wd", default=0.0, type=float, help="Weight decay")
+parser.add_argument(
+    "--checkpoint",
+    required=True,
+    type=str,
+    help="Path to pretrained SimCLR checkpoint",
+)
 
 args = parser.parse_args()
 manualSeed = int(args.seed)
@@ -28,15 +36,18 @@ wd = float(args.wd)
 batch_size = args.batch_size
 max_epoch = args.epochs
 model_name = args.model
+projection_dim = args.projection_dim
+checkpoint_path = args.checkpoint
 
 print("=" * 60)
-print(f"Independent Training: {model_name}")
+print(f"Linear Evaluation: {model_name}")
 print("=" * 60)
 print(f"Seed: {manualSeed}")
 print(f"Learning rate: {lr}")
 print(f"Weight decay: {wd}")
 print(f"Batch size: {batch_size}")
 print(f"Epochs: {max_epoch}")
+print(f"Checkpoint: {checkpoint_path}")
 print("=" * 60)
 print()
 
@@ -53,12 +64,12 @@ else:
 print(f"Using device: {device}")
 print()
 
-# Prepare the CIFAR-100 for training
+# Prepare the CIFAR-10 for evaluation
 num_workers = 10
 
-# Normalization constants for CIFAR-100
-mean = (0.5071, 0.4867, 0.4408)
-std = (0.2675, 0.2565, 0.2761)
+# Normalization constants for CIFAR-10
+mean = (0.4914, 0.4822, 0.4465)
+std = (0.2470, 0.2435, 0.2616)
 
 train_transform = transforms.Compose(
     [
@@ -76,10 +87,10 @@ val_transform = transforms.Compose(
     ]
 )
 
-train_dataset = torchvision.datasets.CIFAR100(
+train_dataset = torchvision.datasets.CIFAR10(
     root="data", train=True, download=True, transform=train_transform
 )
-val_dataset = torchvision.datasets.CIFAR100(
+val_dataset = torchvision.datasets.CIFAR10(
     root="data", train=False, download=True, transform=val_transform
 )
 
@@ -102,19 +113,58 @@ val_dataloader = DataLoader(
     worker_init_fn=WorkerInitializer(manualSeed).worker_init_fn,
 )
 
-num_classes = 100
+num_classes = 10
 
-print("Setting up model...")
+print("Loading pretrained model...")
 print()
 
-# Setup model, optimizer, and loss function
-model = getattr(cifar_models, model_name)(num_classes).to(device)
-model_params = sum(p.numel() for p in model.parameters())
-print(f"Model ({model_name}): {model_params:,} parameters")
+# Load pretrained SimCLR model
+encoder_func = lambda: getattr(cifar_models, model_name)(num_classes)
+simclr_model = SimCLR(encoder_func, out_dim=projection_dim).to(device)
+
+# Load checkpoint using dml utility
+load_checkpoint(simclr_model, checkpoint_path)
+simclr_model = simclr_model.to(device)
+print(f"Loaded checkpoint from: {checkpoint_path}")
+
+# Extract encoder and freeze it
+encoder = simclr_model.encoder
+for param in encoder.parameters():
+    param.requires_grad = False
+encoder.eval()
+
+# Get encoder output dimension
+with torch.no_grad():
+    dummy_input = torch.randn(1, 3, 32, 32).to(device)
+    encoder_output = encoder(dummy_input)
+    encoder_dim = encoder_output.shape[1]
+
+print(f"Encoder output dimension: {encoder_dim}")
 print()
 
+# Create linear classifier
+class LinearClassifier(nn.Module):
+    def __init__(self, encoder, encoder_dim, num_classes):
+        super(LinearClassifier, self).__init__()
+        self.encoder = encoder
+        self.fc = nn.Linear(encoder_dim, num_classes)
+
+    def forward(self, x):
+        with torch.no_grad():
+            features = self.encoder(x)
+        return self.fc(features)
+
+
+model = LinearClassifier(encoder, encoder_dim, num_classes).to(device)
+trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+total_params = sum(p.numel() for p in model.parameters())
+print(f"Total parameters: {total_params:,}")
+print(f"Trainable parameters: {trainable_params:,} (linear classifier only)")
+print()
+
+# Setup optimizer and scheduler
 optimizer = torch.optim.SGD(
-    model.parameters(),
+    model.fc.parameters(),
     lr=lr,
     momentum=0.9,
     weight_decay=wd,
@@ -125,21 +175,19 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
     optimizer, T_max=max_epoch, eta_min=0.0
 )
 
-# Use CompositeLoss from dml package
-criterion_ce = nn.CrossEntropyLoss(reduction="mean")
-links = build_links([criterion_ce])
-criterion = CompositeLoss(links)
+# Use cross-entropy loss
+criterion = nn.CrossEntropyLoss(reduction="mean")
 scaler = torch.amp.GradScaler(device.type, enabled=(device.type == "cuda"))
 
 # Setup logging and checkpointing
-save_dir = f"checkpoint/independent/{model_name}"
+save_dir = f"checkpoint/linear_eval/{model_name}"
 os.makedirs(save_dir, exist_ok=True)
 
-writer = SummaryWriter(f"runs/independent/{model_name}")
+writer = SummaryWriter(f"runs/linear_eval/{model_name}")
 best_score = 0.0
 
 print("=" * 60)
-print("Starting training...")
+print("Starting linear evaluation...")
 print("=" * 60)
 print()
 
@@ -160,8 +208,7 @@ for epoch in range(1, max_epoch + 1):
         # Forward pass
         with torch.amp.autocast(device_type=device.type):
             output = model(image)
-            # CompositeLoss expects list of outputs and labels, and model_id
-            loss = criterion(0, [output], [label], epoch)
+            loss = criterion(output, label)
 
         # Backward pass
         scaler.scale(loss).backward()
@@ -224,7 +271,7 @@ for epoch in range(1, max_epoch + 1):
 writer.close()
 
 print("=" * 60)
-print("Training completed!")
+print("Linear evaluation completed!")
 print("=" * 60)
 print(f"Best test accuracy: {best_score:.2f}%")
 print("=" * 60)

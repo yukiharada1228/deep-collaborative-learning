@@ -4,13 +4,13 @@ import time
 
 import torch
 import torchvision
+from dml.utils import (AverageMeter, WorkerInitializer, save_checkpoint,
+                       set_seed)
+from losses import SimCLRLoss
 from models import cifar_models
 from models.simclr_model import SimCLR
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-
-from dml.utils import AverageMeter, WorkerInitializer, save_checkpoint, set_seed
-from losses import SimCLRLoss
 from transform import SimCLRTransforms
 from utils.optimizer import LARS
 from utils.scheduler import get_cosine_schedule_with_warmup

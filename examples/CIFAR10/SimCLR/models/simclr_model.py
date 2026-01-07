@@ -101,9 +101,7 @@ class SimCLR(nn.Module):
         """
         return self.projector(self.encoder(x))
 
-    def forward(
-        self, x1: torch.Tensor, x2: torch.Tensor, _=None
-    ) -> list[torch.Tensor]:
+    def forward(self, x1: torch.Tensor, x2: torch.Tensor, _=None) -> list[torch.Tensor]:
         """Forward pass through encoder and projector for both views.
 
         Args:

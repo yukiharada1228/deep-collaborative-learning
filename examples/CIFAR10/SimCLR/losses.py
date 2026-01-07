@@ -138,9 +138,7 @@ class DoGoLoss(nn.Module):
         # Result: (batch_size, batch_size)
         return self.similarity_fn(z1.unsqueeze(1), z2.unsqueeze(0))
 
-    def forward(
-        self, target_outputs: tuple, source_outputs: tuple
-    ) -> torch.Tensor:
+    def forward(self, target_outputs: tuple, source_outputs: tuple) -> torch.Tensor:
         """Compute DoGo distillation loss.
 
         Args:
@@ -167,5 +165,5 @@ class DoGoLoss(nn.Module):
 
         # Compute KL divergence and scale by T² to compensate for gradient scaling
         # (following Hinton et al., "Distilling the Knowledge in a Neural Network")
-        loss = self.criterion(log_prob_target, prob_source) * (self.temperature ** 2)
+        loss = self.criterion(log_prob_target, prob_source) * (self.temperature**2)
         return loss
