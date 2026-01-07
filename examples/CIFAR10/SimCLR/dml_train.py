@@ -4,14 +4,17 @@ import time
 
 import torch
 import torchvision
-from dml import LARS, CompositeLoss, build_links, get_cosine_schedule_with_warmup
+from dml import (LARS, CompositeLoss, build_links,
+                 get_cosine_schedule_with_warmup)
 from dml.utils import (AverageMeter, WorkerInitializer, save_checkpoint,
                        set_seed)
+from knn_eval import evaluate_knn
 from losses import DoGoLoss, SimCLRLoss
 from models import cifar_models
 from models.simclr_model import SimCLR
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from torchvision import transforms
 from transform import SimCLRTransforms
 
 parser = argparse.ArgumentParser(description="SimCLR + DoGo on CIFAR-10")
@@ -55,6 +58,16 @@ parser.add_argument(
     default=2,
     help="Number of nodes. If len(models) == 1, it will be broadcasted to this number.",
 )
+parser.add_argument(
+    "--knn-eval-freq",
+    type=int,
+    default=1,
+    help="Frequency of KNN evaluation (in epochs, 0 to disable)",
+)
+parser.add_argument("--knn-k", type=int, default=20, help="Number of neighbors for KNN")
+parser.add_argument(
+    "--knn-temperature", type=float, default=0.07, help="Temperature for KNN"
+)
 
 args = parser.parse_args()
 manualSeed = int(args.seed)
@@ -74,6 +87,9 @@ dogo_temperature = args.dogo_temperature
 color_jitter_strength = args.color_jitter_strength
 use_blur = args.use_blur
 num_nodes = args.num_nodes
+knn_eval_freq = args.knn_eval_freq
+knn_k = args.knn_k
+knn_temperature = args.knn_temperature
 
 if len(models_name) == 1 and num_nodes > 1:
     models_name = models_name * num_nodes
@@ -137,6 +153,50 @@ train_dataloader = DataLoader(
 )
 
 num_classes = 10
+
+# Prepare KNN evaluation dataloaders (with standard transforms)
+if knn_eval_freq > 0:
+    # Normalization constants for CIFAR-10
+    mean = (0.4914, 0.4822, 0.4465)
+    std = (0.2470, 0.2435, 0.2616)
+
+    knn_train_transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ]
+    )
+
+    knn_test_transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ]
+    )
+
+    knn_train_dataset = torchvision.datasets.CIFAR10(
+        root="data", train=True, download=True, transform=knn_train_transform
+    )
+    knn_test_dataset = torchvision.datasets.CIFAR10(
+        root="data", train=False, download=True, transform=knn_test_transform
+    )
+
+    knn_train_dataloader = DataLoader(
+        knn_train_dataset,
+        batch_size=256,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=False,
+    )
+    knn_test_dataloader = DataLoader(
+        knn_test_dataset,
+        batch_size=256,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+        drop_last=False,
+    )
 
 print("Setting up models...")
 print()
@@ -293,6 +353,29 @@ for epoch in range(1, max_epoch + 1):
             epoch,
             filename="latest_checkpoint.pkl",
         )
+
+    # KNN evaluation
+    if knn_eval_freq > 0 and (epoch % knn_eval_freq == 0 or epoch == max_epoch):
+        print()
+        print("  Running KNN evaluation...")
+        for model_id in range(num_nodes):
+            results = evaluate_knn(
+                models[model_id],
+                knn_train_dataloader,
+                knn_test_dataloader,
+                device,
+                k=knn_k,
+                temperature=knn_temperature,
+                num_classes=num_classes,
+            )
+
+            # Log KNN results
+            writers[model_id].add_scalar("knn_top1", results["top1"], epoch)
+            writers[model_id].add_scalar("knn_top5", results["top5"], epoch)
+
+            print(
+                f"  Model {model_id} KNN: top1={results['top1']:.2f}%, top5={results['top5']:.2f}%"
+            )
 
     elapsed_time = time.time() - start_time
     print(f"  Elapsed time: {elapsed_time:.2f}s")
