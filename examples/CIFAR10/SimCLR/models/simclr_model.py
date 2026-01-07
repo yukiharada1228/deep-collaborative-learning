@@ -42,30 +42,6 @@ class SimCLR(nn.Module):
             nn.Linear(self.input_dim, out_dim, bias=False),
         )
 
-    @torch.no_grad()
-    def encoder_features(self, x: torch.Tensor) -> torch.Tensor:
-        """Extract encoder features without gradient computation.
-
-        Args:
-            x: Input images of shape (batch_size, channels, height, width).
-
-        Returns:
-            Encoder features of shape (batch_size, input_dim).
-        """
-        return self.encoder(x)
-
-    @torch.no_grad()
-    def projector_features(self, x: torch.Tensor) -> torch.Tensor:
-        """Extract projected features without gradient computation.
-
-        Args:
-            x: Input images of shape (batch_size, channels, height, width).
-
-        Returns:
-            Projected features of shape (batch_size, out_dim).
-        """
-        return self.projector(self.encoder(x))
-
     def forward(self, x1: torch.Tensor, x2: torch.Tensor, _=None) -> list[torch.Tensor]:
         """Forward pass through encoder and projector for both views.
 
