@@ -4,18 +4,19 @@ import time
 
 import torch
 import torchvision
+from dml import (LARS, CompositeLoss, build_links,
+                 get_cosine_schedule_with_warmup)
+from dml.utils import (AverageMeter, WorkerInitializer, save_checkpoint,
+                       set_seed)
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from torchvision import transforms
+
 from knn_eval import evaluate_knn
 from losses import SimCLRLoss
 from models import cifar_models
 from models.simclr_model import SimCLR
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from torchvision import transforms
 from transform import SimCLRTransforms
-
-from dml import LARS, get_cosine_schedule_with_warmup
-from dml.utils import (AverageMeter, WorkerInitializer, save_checkpoint,
-                       set_seed)
 
 parser = argparse.ArgumentParser(description="SimCLR Training on CIFAR-10")
 parser.add_argument("--seed", default=42, type=int, help="Random seed")
@@ -208,7 +209,10 @@ scheduler = get_cosine_schedule_with_warmup(
     num_training_steps=num_training_steps,
 )
 
-criterion = SimCLRLoss(batch_size=batch_size, temperature=temperature)
+# Use CompositeLoss from dml package
+criterion_simclr = SimCLRLoss(batch_size=batch_size, temperature=temperature)
+links = build_links([criterion_simclr])
+criterion = CompositeLoss(links)
 scaler = torch.amp.GradScaler(device.type, enabled=(device.type == "cuda"))
 
 # Setup logging and checkpointing
@@ -238,7 +242,9 @@ for epoch in range(1, max_epoch + 1):
         # Forward pass
         with torch.amp.autocast(device_type=device.type):
             z1, z2 = model(view1, view2)
-            loss = criterion((z1, z2))
+            # CompositeLoss expects model_id, list of outputs, list of labels, and epoch
+            # For SimCLR, we pass the projection outputs as a tuple
+            loss = criterion(0, [(z1, z2)], [None], epoch)
 
         # Backward pass
         scaler.scale(loss).backward()
