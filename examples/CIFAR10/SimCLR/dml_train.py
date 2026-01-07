@@ -4,6 +4,7 @@ import time
 
 import torch
 import torchvision
+from dml import CompositeLoss, build_links
 from dml.utils import (AverageMeter, WorkerInitializer, save_checkpoint,
                        set_seed)
 from losses import DoGoLoss, SimCLRLoss
@@ -147,6 +148,7 @@ models = []
 optimizers = []
 schedulers = []
 scalers = []
+composite_losses = []
 writers = []
 save_dirs = []
 
@@ -194,6 +196,33 @@ for i, model_name in enumerate(models_name):
     scaler = torch.amp.GradScaler(device.type, enabled=(device.type == "cuda"))
     scalers.append(scaler)
 
+    # Create loss functions (criterions) for this model
+    criterions = []
+    temperatures_list = []
+
+    for j in range(num_nodes):
+        if i == j:
+            # Self-link: SimCLR loss
+            criterions.append(
+                SimCLRLoss(batch_size=batch_size, temperature=temperature)
+            )
+            temperatures_list.append(None)
+        else:
+            # Cross-link: DoGo loss (knowledge distillation)
+            criterions.append(DoGoLoss(temperature=dogo_temperature))
+            temperatures_list.append(dogo_temperature)
+
+    links = build_links(criterions, temperatures=temperatures_list)
+    composite_loss = CompositeLoss(links)
+    composite_losses.append(composite_loss)
+
+    # Print link configuration
+    print(f"  Loss config for Model {i}:")
+    for k, link in enumerate(links):
+        link_type = "Self (SimCLR)" if i == k else f"Node {k} → Node {i} (DoGo)"
+        temp_str = f"{link.temperature:.1f}" if link.temperature is not None else "N/A"
+        print(f"    Link {k} ({link_type}): T={temp_str}")
+
     # Setup logging and checkpointing
     save_dir = (
         f"checkpoint/simclr_dogo_t{dogo_temperature:.1f}_n{num_nodes}/{i}_{model_name}"
@@ -207,10 +236,6 @@ for i, model_name in enumerate(models_name):
     writers.append(writer)
 
 print()
-
-# Setup loss functions
-simclr_criterion = SimCLRLoss(batch_size=batch_size, temperature=temperature)
-dogo_criterion = DoGoLoss(temperature=dogo_temperature)
 
 print("=" * 60)
 print("Starting training...")
@@ -238,19 +263,11 @@ for epoch in range(1, max_epoch + 1):
             outputs.append((z1, z2))
 
         # Backward pass for each model
+        # Note: labels are not used for SimCLR/DoGo, but CompositeLoss expects them
+        labels = [None] * num_nodes
         for model_id in range(num_nodes):
             with torch.amp.autocast(device_type=device.type):
-                # SimCLR loss (self-supervised)
-                loss = simclr_criterion(outputs[model_id])
-
-                # DoGo loss (knowledge distillation from other models)
-                for other_id in range(num_nodes):
-                    if model_id != other_id:
-                        dogo_loss = dogo_criterion(
-                            target_outputs=outputs[model_id],
-                            source_outputs=outputs[other_id],
-                        )
-                        loss = loss + dogo_loss
+                loss = composite_losses[model_id](model_id, outputs, labels, epoch - 1)
 
             # Optimization
             scalers[model_id].scale(loss).backward()
