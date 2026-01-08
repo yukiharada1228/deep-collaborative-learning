@@ -23,4 +23,24 @@ uv sync
 
 ## Acknowledgements
 
-This implementation is based on the paper ["Deep Mutual Learning"](https://arxiv.org/abs/1706.00384) by Ying Zhang, Tao Xiang, Timothy M. Hospedales, and Huchuan Lu. I acknowledge and appreciate their valuable contributions to the field.
+This implementation is based on the following papers. I acknowledge and appreciate their valuable contributions to the field:
+
+- **Distilling the Knowledge in a Neural Network**
+  Geoffrey Hinton, Oriol Vinyals, and Jeff Dean.
+  [arXiv:1503.02531](https://arxiv.org/abs/1503.02531)
+
+- **Deep Mutual Learning**
+  Ying Zhang, Tao Xiang, Timothy M. Hospedales, and Huchuan Lu.
+  [arXiv:1706.00384](https://arxiv.org/abs/1706.00384)
+
+- **A Simple Framework for Contrastive Learning of Visual Representations (SimCLR)**
+  Ting Chen, Simon Kornblith, Mohammad Norouzi, and Geoffrey Hinton.
+  [arXiv:2002.05709](https://arxiv.org/abs/2002.05709)
+
+- **Distill on the Go: Online Knowledge Distillation in Self-Supervised Learning**
+  Prashant Bhat, Elahe Arani, and Bahram Zonooz.
+  [arXiv:2104.09866](https://arxiv.org/abs/2104.09866)
+
+- **Large Batch Training of Convolutional Networks (LARS)**
+  Yang You, Igor Gitman, and Boris Ginsburg.
+  [arXiv:1708.03888](https://arxiv.org/abs/1708.03888)
