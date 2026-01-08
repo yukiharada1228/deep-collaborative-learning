@@ -4,7 +4,6 @@ import time
 
 import torch
 import torchvision
-from knn_eval import evaluate_knn
 from losses import DoGoLoss, SimCLRLoss
 from models import cifar_models
 from models.simclr_model import SimCLR
@@ -15,8 +14,8 @@ from transform import SimCLRTransforms
 
 from dml import (LARS, CompositeLoss, build_links,
                  get_cosine_schedule_with_warmup)
-from dml.utils import (AverageMeter, WorkerInitializer, save_checkpoint,
-                       set_seed)
+from dml.utils import (AverageMeter, WorkerInitializer, evaluate_knn,
+                       save_checkpoint, set_seed)
 
 parser = argparse.ArgumentParser(description="SimCLR + DoGo on CIFAR-10")
 parser.add_argument("--seed", default=42, type=int, help="Random seed")
@@ -283,9 +282,7 @@ for i, model_name in enumerate(models_name):
         print(f"    Link {k} ({link_type}): T={temp_str}")
 
     # Setup logging and checkpointing
-    save_dir = (
-        f"checkpoint/simclr_dogo_t{dogo_temperature:.1f}_w{loss_weight:.1f}_n{num_nodes}/{i}_{model_name}"
-    )
+    save_dir = f"checkpoint/simclr_dogo_t{dogo_temperature:.1f}_w{loss_weight:.1f}_n{num_nodes}/{i}_{model_name}"
     os.makedirs(save_dir, exist_ok=True)
     save_dirs.append(save_dir)
 
