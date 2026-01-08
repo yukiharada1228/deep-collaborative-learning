@@ -284,13 +284,13 @@ for i, model_name in enumerate(models_name):
 
     # Setup logging and checkpointing
     save_dir = (
-        f"checkpoint/simclr_dogo_t{dogo_temperature:.1f}_n{num_nodes}/{i}_{model_name}"
+        f"checkpoint/simclr_dogo_t{dogo_temperature:.1f}_w{loss_weight:.1f}_n{num_nodes}/{i}_{model_name}"
     )
     os.makedirs(save_dir, exist_ok=True)
     save_dirs.append(save_dir)
 
     writer = SummaryWriter(
-        f"runs/simclr_dogo_t{dogo_temperature:.1f}_n{num_nodes}/{i}_{model_name}"
+        f"runs/simclr_dogo_t{dogo_temperature:.1f}_w{loss_weight:.1f}_n{num_nodes}/{i}_{model_name}"
     )
     writers.append(writer)
 
