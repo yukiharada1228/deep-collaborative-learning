@@ -4,18 +4,18 @@ import time
 
 import torch
 import torchvision
-from losses import SimCLRLoss
-from models import cifar_models
-from models.simclr_model import SimCLR
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from torchvision import transforms
-from transform import SimCLRTransforms
-
 from dml import (LARS, CompositeLoss, build_links,
                  get_cosine_schedule_with_warmup)
 from dml.utils import (AverageMeter, WorkerInitializer, evaluate_knn,
                        save_checkpoint, set_seed)
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from torchvision import transforms
+
+from losses import SimCLRLoss
+from models import cifar_models
+from models.simclr_model import SimCLR
+from transform import SimCLRTransforms
 
 parser = argparse.ArgumentParser(description="SimCLR Training on CIFAR-10")
 parser.add_argument("--seed", default=42, type=int, help="Random seed")

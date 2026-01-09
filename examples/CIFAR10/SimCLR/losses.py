@@ -164,5 +164,9 @@ class DoGoLoss(nn.Module):
         # Source model: probabilities (teacher, detached from gradient)
         prob_source = F.softmax(sim_source.detach() / self.temperature, dim=-1)
 
-        loss = self.criterion(log_prob_target, prob_source) * (self.temperature**2)
+        loss = (
+            self.loss_weight
+            * self.criterion(log_prob_target, prob_source)
+            * (self.temperature**2)
+        )
         return loss
