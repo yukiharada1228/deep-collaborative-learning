@@ -119,7 +119,7 @@ class DoGoLoss(nn.Module):
         # Cosine similarity function (computes similarity along dim=2)
         self.similarity_fn = nn.CosineSimilarity(dim=2)
         # KL divergence loss with batch mean reduction
-        self.criterion = nn.KLDivLoss(reduction="batchmean")
+        self.criterion = nn.KLDivLoss(reduction="mean")
 
     def _compute_similarity_matrix(
         self, z1: torch.Tensor, z2: torch.Tensor
