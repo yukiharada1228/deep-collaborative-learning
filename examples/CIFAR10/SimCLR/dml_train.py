@@ -4,18 +4,18 @@ import time
 
 import torch
 import torchvision
+from losses import DisCOLoss, SimCLRLoss
+from models import cifar_models
+from models.simclr_model import SimCLR
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from torchvision import transforms
+from transform import SimCLRTransforms
+
 from dml import (LARS, CompositeLoss, build_links,
                  get_cosine_schedule_with_warmup)
 from dml.utils import (AverageMeter, WorkerInitializer, evaluate_knn,
                        save_checkpoint, set_seed)
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from torchvision import transforms
-
-from losses import DisCOLoss, SimCLRLoss
-from models import cifar_models
-from models.simclr_model import SimCLR
-from transform import SimCLRTransforms
 
 
 def main():
@@ -25,7 +25,9 @@ def main():
     parser.add_argument("--batch-size", default=512, type=int, help="Batch size")
     parser.add_argument("--epochs", default=1000, type=int, help="Number of epochs")
     parser.add_argument("--warmup-epochs", default=10, type=int, help="Warmup epochs")
-    parser.add_argument("--projection-dim", default=128, type=int, help="Projection dim")
+    parser.add_argument(
+        "--projection-dim", default=128, type=int, help="Projection dim"
+    )
     parser.add_argument(
         "--optimizer",
         default="lars",
@@ -63,7 +65,9 @@ def main():
         default=1,
         help="Frequency of KNN evaluation (in epochs, 0 to disable)",
     )
-    parser.add_argument("--knn-k", type=int, default=20, help="Number of neighbors for KNN")
+    parser.add_argument(
+        "--knn-k", type=int, default=20, help="Number of neighbors for KNN"
+    )
     parser.add_argument(
         "--knn-temperature", type=float, default=0.07, help="Temperature for KNN"
     )
@@ -268,7 +272,9 @@ def main():
         print(f"  Loss config for Model {i}:")
         for k, link in enumerate(links):
             link_type = "Self (SimCLR)" if i == k else f"Node {k} → Node {i} (DisCO)"
-            temp_str = f"{link.temperature:.1f}" if link.temperature is not None else "N/A"
+            temp_str = (
+                f"{link.temperature:.1f}" if link.temperature is not None else "N/A"
+            )
             print(f"    Link {k} ({link_type}): T={temp_str}")
 
         # Setup logging and checkpointing
@@ -276,9 +282,7 @@ def main():
         os.makedirs(save_dir, exist_ok=True)
         save_dirs.append(save_dir)
 
-        writer = SummaryWriter(
-            f"runs/simclr_disco_n{num_nodes}/{i}_{model_name}"
-        )
+        writer = SummaryWriter(f"runs/simclr_disco_n{num_nodes}/{i}_{model_name}")
         writers.append(writer)
 
     print()
@@ -313,7 +317,9 @@ def main():
             labels = [None] * num_nodes
             for model_id in range(num_nodes):
                 with torch.amp.autocast(device_type=device.type):
-                    loss = composite_losses[model_id](model_id, outputs, labels, epoch - 1)
+                    loss = composite_losses[model_id](
+                        model_id, outputs, labels, epoch - 1
+                    )
 
                 # Optimization
                 scalers[model_id].scale(loss).backward()
