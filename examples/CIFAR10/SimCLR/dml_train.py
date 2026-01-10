@@ -44,7 +44,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--models",
-    default=["resnet18", "resnet18"],
+    default=["resnet18", "resnet50"],
     nargs="+",
     type=str,
     help="List of model names to train with SimCLR+DisCO",
